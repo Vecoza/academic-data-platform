@@ -1,5 +1,9 @@
-.PHONY: help install up down logs psql check-db migrate migrate-down migrate-status lint format \
-	test test-unit test-db clean
+SEED ?= 42
+STUDENTS ?= 15000
+YEARS ?= 8
+
+.PHONY: help install up down logs psql check-db migrate migrate-down migrate-status generate \
+	lint format test test-unit test-db clean
 
 help:  ## Show available commands
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {n++; name[n] = $$1; desc[n] = $$2; \
@@ -34,6 +38,9 @@ migrate-down:  ## Revert all database migrations
 migrate-status:  ## Show the current migration and the history
 	alembic current
 	alembic history
+
+generate:  ## Replace all operational data with a full generated history (SEED, STUDENTS, YEARS)
+	python -m generator --mode full --seed $(SEED) --students $(STUDENTS) --years $(YEARS)
 
 lint:  ## Run linter
 	ruff check .
