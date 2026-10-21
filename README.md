@@ -104,7 +104,7 @@ academic-data-platform/
 ## Roadmap
 
 - [x] Project foundation, containerized database, continuous integration
-- [ ] Operational schema design (3NF) and migrations
+- [x] Operational schema design (3NF) and migrations
 - [ ] Synthetic data generator
 - [ ] Incremental ingestion pipeline
 - [ ] Warehouse: staging layer, star schema, SCD Type 2
