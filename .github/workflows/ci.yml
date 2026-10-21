@@ -7,7 +7,32 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: academic
+          POSTGRES_PASSWORD: academic
+          POSTGRES_DB: university
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U academic -d university"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      POSTGRES_USER: academic
+      POSTGRES_PASSWORD: academic
+      POSTGRES_DB: university
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+      WAREHOUSE_DB: warehouse
+      PGPASSWORD: academic
+
     steps:
       - uses: actions/checkout@v4
 
@@ -21,6 +46,20 @@ jobs:
 
       - name: Lint
         run: ruff check .
+
+      - name: Install PostgreSQL 16 client
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client-16
+          psql --version
+
+      - name: Create warehouse database
+        run: >-
+          psql -h "$POSTGRES_HOST" -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+          -v ON_ERROR_STOP=1 -f docker/init/01_create_warehouse.sql
+
+      - name: Apply migrations
+        run: alembic upgrade head
 
       - name: Test
         run: pytest
