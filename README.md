@@ -91,6 +91,7 @@ A small dashboard presents the key academic metrics to the people who need them.
 academic-data-platform/
 ├── src/academic_platform/   Shared Python package (configuration, database access)
 ├── db/migrations/           Operational schema migrations
+├── docker/init/             Database server initialization (warehouse database and schemas)
 ├── generator/               Synthetic data generator
 ├── ingestion/               Operational database to raw layer pipeline
 ├── dbt/                     Warehouse models and tests
