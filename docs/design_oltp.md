@@ -118,6 +118,10 @@ Rules:
 - Partial unique index on `student_id WHERE valid_to IS NULL`: at most one current program per student.
 - `EXCLUDE USING gist (student_id WITH =, daterange(valid_from, valid_to) WITH &&)`, using the `btree_gist` extension: no two periods of the same student overlap. This is a declarative alternative to a trigger.
 
+Two open periods always overlap, so the exclusion constraint alone would already reject a second current program. The partial unique index is kept for two reasons:
+- **A clearer error.** It is created before the exclusion constraint, so PostgreSQL checks it first and reports `uq_student_programs_current` instead of a generic overlap.
+- **Fast lookup.** It doubles as the index for finding a student's current program.
+
 Graduation and dropout are recorded in `students.status`. The last period stays open as "the program the student belongs, or last belonged, to".
 
 ### `ON DELETE` behaviour
@@ -134,7 +138,7 @@ A `CHECK` constraint can only see the row being written. Rules that need other r
 
 | Rule | Mechanism |
 |---|---|
-| Grade 5–10, points 0–100, ECTS 1–15, `end_date > start_date`, `valid_to > valid_from`, a course is not its own prerequisite, enumerations | `CHECK` |
+| Grade 5–10, points 0–100, ECTS 1–15, `end_date > start_date`, `valid_to > valid_from`, a course is not its own prerequisite, positive counts (program length and ECTS, semester number, offering capacity), enumerations | `CHECK` |
 | Business keys (see the tables above), one current program per student | `UNIQUE`, partial unique index |
 | Non-overlapping program periods | `EXCLUDE` constraint |
 | `updated_at` maintained on every update | `BEFORE UPDATE` trigger `set_updated_at()` on every table |
@@ -171,6 +175,26 @@ A `CHECK` constraint can only see the row being written. Rules that need other r
 ### Indexes
 
 PostgreSQL indexes primary keys and unique constraints automatically, but not foreign key columns. Every foreign key column gets an index, unless it is the leading column of a unique constraint that already covers it. This keeps joins fast and keeps `RESTRICT` checks on parent deletes from scanning child tables.
+
+### Nullability and defaults
+
+- **`NOT NULL` everywhere but one column.** Every column is `NOT NULL` except `student_programs.valid_to`, where `NULL` means the period is still open. Optional data was avoided rather than modelled with nulls.
+- **Defaults describe a new record.** A new student is `active` and a new enrollment is `enrolled`. `enrolled_at` and `attempted_at` default to the time of insert, and courses are mandatory unless stated otherwise.
+
+### Naming conventions
+
+Every constraint, index and trigger has an explicit name, so errors, migrations and tests can refer to it.
+
+| Object | Pattern | Example |
+|---|---|---|
+| Primary key | `pk_<table>` | `pk_students` |
+| Foreign key | `fk_<table>_<referenced entity>` | `fk_enrollments_student` |
+| Unique constraint or index | `uq_<table>_<columns>` | `uq_courses_code` |
+| Check constraint | `ck_<table>_<rule>` | `ck_exam_attempts_grade_range` |
+| Exclusion constraint | `ex_<table>_<rule>` | `ex_student_programs_no_overlap` |
+| Index | `ix_<table>_<column>` | `ix_enrollments_offering_id` |
+| Trigger | `trg_<table>_<action>` | `trg_enrollments_check_prerequisites` |
+| Rule reported by a trigger | `rule_<table>_<rule>` | `rule_exam_attempts_not_after_pass` |
 
 ### Known simplifications
 
