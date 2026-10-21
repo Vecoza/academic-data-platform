@@ -138,9 +138,18 @@ A `CHECK` constraint can only see the row being written. Rules that need other r
 | Business keys (see the tables above), one current program per student | `UNIQUE`, partial unique index |
 | Non-overlapping program periods | `EXCLUDE` constraint |
 | `updated_at` maintained on every update | `BEFORE UPDATE` trigger `set_updated_at()` on every table |
-| A student can enroll in a course only after passing (grade ≥ 6) every prerequisite | `BEFORE INSERT` trigger on `enrollments` |
-| An attempt must belong to an exam term of the same offering as its enrollment | `BEFORE INSERT OR UPDATE` trigger on `exam_attempts` |
+| A student can enroll in a course only after passing (grade ≥ 6) every prerequisite | `trg_enrollments_check_prerequisites`, `BEFORE INSERT OR UPDATE OF student_id, offering_id` |
+| An attempt must belong to an exam term of the same offering as its enrollment | `trg_exam_attempts_check_rules`, `BEFORE INSERT OR UPDATE OF enrollment_id, exam_term_id, grade` |
 | No new attempt for an enrollment that already has a passing attempt | same trigger on `exam_attempts` |
+
+**How the triggers report violations.**
+- **One error code.** Every business-rule violation raises SQLSTATE `23514` (`check_violation`), so clients handle it like any other constraint violation. Through psycopg and SQLAlchemy it surfaces as an `IntegrityError`.
+- **A named rule.** The error carries a constraint name, so a violation can be identified without parsing the message: `rule_enrollments_prerequisites_passed`, `rule_exam_attempts_same_offering` or `rule_exam_attempts_not_after_pass`.
+- **A readable message.** The message names the courses, terms or enrollments involved.
+
+**Updates are covered as well as inserts**, so a rule cannot be bypassed by changing a key column after the fact.
+- Grade corrections are allowed. For example, the points of an earlier failed attempt, or the grade of the passing attempt itself, can still be corrected.
+- An update is rejected only if it would leave the enrollment with two passing attempts.
 
 **Why in the database and not only in application code.** Several writers touch this database: the data generator, manual corrections, and any future application. A rule enforced only in one of them is a rule the others can break. In the database it holds for every writer. It also makes the generator's output trustworthy: if the generated history loads, it obeys the rules.
 
