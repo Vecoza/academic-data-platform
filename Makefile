@@ -1,7 +1,10 @@
 .PHONY: help install up down logs psql check-db lint format test clean
 
 help:  ## Show available commands
-	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
+	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {n++; name[n] = $$1; desc[n] = $$2; \
+		if (length($$1) > width) width = length($$1)} \
+		END {for (i = 1; i <= n; i++) printf "  \033[36m%-" width "s\033[0m  %s\n", name[i], desc[i]}' \
+		$(MAKEFILE_LIST)
 
 install:  ## Install the package with dev dependencies
 	pip install -e ".[dev]"
