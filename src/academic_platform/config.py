@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from dotenv import load_dotenv
 
@@ -27,6 +27,11 @@ class DatabaseSettings:
             port=int(os.getenv("POSTGRES_PORT", "5432")),
             name=os.getenv("POSTGRES_DB", "university"),
         )
+
+    @classmethod
+    def for_warehouse(cls) -> DatabaseSettings:
+        """Settings for the analytical database on the same server."""
+        return replace(cls.from_env(), name=os.getenv("WAREHOUSE_DB", "warehouse"))
 
     @property
     def url(self) -> str:
