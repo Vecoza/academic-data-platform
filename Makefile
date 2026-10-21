@@ -1,4 +1,5 @@
-.PHONY: help install up down logs psql check-db lint format test clean
+.PHONY: help install up down logs psql check-db migrate migrate-down migrate-status lint format \
+	test clean
 
 help:  ## Show available commands
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {n++; name[n] = $$1; desc[n] = $$2; \
@@ -23,6 +24,16 @@ psql:  ## Open a psql shell in the database container
 
 check-db:  ## Verify the database connection from Python
 	python -m academic_platform.db
+
+migrate:  ## Apply all database migrations
+	alembic upgrade head
+
+migrate-down:  ## Revert all database migrations
+	alembic downgrade base
+
+migrate-status:  ## Show the current migration and the history
+	alembic current
+	alembic history
 
 lint:  ## Run linter
 	ruff check .
