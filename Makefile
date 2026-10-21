@@ -1,5 +1,5 @@
 .PHONY: help install up down logs psql check-db migrate migrate-down migrate-status lint format \
-	test clean
+	test test-unit test-db clean
 
 help:  ## Show available commands
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {n++; name[n] = $$1; desc[n] = $$2; \
@@ -41,8 +41,14 @@ lint:  ## Run linter
 format:  ## Format code
 	ruff format .
 
-test:  ## Run tests
+test:  ## Run all tests (database tests are skipped if PostgreSQL is not running)
 	pytest
+
+test-unit:  ## Run tests that do not need a database
+	pytest -m "not db"
+
+test-db:  ## Run database tests
+	pytest -m db
 
 clean:  ## Remove caches
 	rm -rf .pytest_cache .ruff_cache .coverage htmlcov

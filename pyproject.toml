@@ -28,7 +28,8 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-ra"
+addopts = "-ra --strict-markers"
+markers = ["db: needs a running PostgreSQL server"]
 
 [tool.ruff]
 line-length = 100
