@@ -11,6 +11,7 @@ requires-python = ">=3.11"
 license = { text = "MIT" }
 dependencies = [
     "alembic>=1.13",
+    "Faker>=30.0",
     "psycopg[binary]>=3.1",
     "SQLAlchemy>=2.0",
     "python-dotenv>=1.0",
@@ -24,7 +25,8 @@ dev = [
 ]
 
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["src", "."]
+include = ["academic_platform*", "generator*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
