@@ -28,7 +28,7 @@ dev = [
 
 [tool.setuptools.packages.find]
 where = ["src", "."]
-include = ["academic_platform*", "generator*", "ingestion*"]
+include = ["academic_platform*", "generator*", "ingestion*", "quality*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
