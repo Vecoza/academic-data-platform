@@ -7,7 +7,8 @@ YEARS ?= 8
 DAYS ?= 1
 
 .PHONY: help install up down logs psql check-db migrate migrate-down migrate-status generate \
-	generate-daily ingest ingest-full dbt-build dbt-docs quality pipeline airflow-up airflow-down test-dags lint format test test-unit test-db clean
+	generate-daily ingest ingest-full dbt-build dbt-docs quality pipeline airflow-up airflow-down test-dags dashboard-up dashboard-down \
+	lint format test test-unit test-db clean
 
 help:  ## Show available commands
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {n++; name[n] = $$1; desc[n] = $$2; \
@@ -81,6 +82,12 @@ airflow-up:  ## Build and start Airflow (UI on http://localhost:8080)
 
 airflow-down:  ## Stop and remove the Airflow containers; PostgreSQL keeps running
 	docker compose --profile airflow rm --stop --force $(AIRFLOW_SERVICES)
+
+dashboard-up:  ## Build and start the dashboard (http://localhost:8501)
+	docker compose --profile dashboard up -d --build --wait dashboard
+
+dashboard-down:  ## Stop and remove the dashboard containers
+	docker compose --profile dashboard rm --stop --force dashboard dashboard-access
 
 test-dags:  ## Run the DAG tests inside the Airflow image
 	docker run --rm -v "$(CURDIR)/orchestration:/opt/orchestration:ro" --entrypoint bash \

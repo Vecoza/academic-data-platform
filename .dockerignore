@@ -6,6 +6,8 @@
 !generator/
 !ingestion/
 !quality/
+!dashboard/
+!.streamlit/config.toml
 !dbt/
 dbt/target/
 dbt/logs/
