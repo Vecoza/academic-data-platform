@@ -95,6 +95,7 @@ academic-data-platform/
 ├── generator/               Synthetic data generator
 ├── ingestion/               Operational database to raw layer pipeline
 ├── dbt/                     Warehouse models and tests
+├── quality/                 Cross-layer reconciliation checks
 ├── orchestration/           Pipeline scheduling
 ├── dashboard/               Reporting layer
 ├── docs/                    ERDs and design notes
@@ -108,7 +109,7 @@ academic-data-platform/
 - [x] Synthetic data generator
 - [x] Incremental ingestion pipeline
 - [x] Warehouse: staging layer, star schema, SCD Type 2
-- [ ] Data quality tests
+- [x] Data quality tests
 - [ ] Orchestration
 - [ ] Dashboard
 - [ ] Documentation: ERDs and design notes
