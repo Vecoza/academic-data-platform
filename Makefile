@@ -7,7 +7,7 @@ YEARS ?= 8
 DAYS ?= 1
 
 .PHONY: help install up down logs psql check-db migrate migrate-down migrate-status generate \
-	generate-daily ingest ingest-full dbt-build dbt-docs quality pipeline lint format test test-unit test-db clean
+	generate-daily ingest ingest-full dbt-build dbt-docs quality pipeline airflow-up airflow-down test-dags lint format test test-unit test-db clean
 
 help:  ## Show available commands
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {n++; name[n] = $$1; desc[n] = $$2; \
@@ -69,6 +69,23 @@ quality:  ## Reconcile row counts across layers and check raw freshness
 	$(DBT) source freshness $(DBT_DIRS)
 
 pipeline: migrate generate ingest-full dbt-build quality  ## Run the whole chain on a fresh history
+
+AIRFLOW_IMAGE = academic-data-platform-airflow:3.3.2
+AIRFLOW_CONSTRAINTS = https://raw.githubusercontent.com/apache/airflow/constraints-3.3.2/constraints-3.11.txt
+AIRFLOW_SERVICES = airflow-database airflow-init airflow-apiserver airflow-scheduler \
+	airflow-dag-processor
+
+airflow-up:  ## Build and start Airflow (UI on http://localhost:8080)
+	docker compose --profile airflow up -d --build --wait \
+		airflow-apiserver airflow-scheduler airflow-dag-processor
+
+airflow-down:  ## Stop and remove the Airflow containers; PostgreSQL keeps running
+	docker compose --profile airflow rm --stop --force $(AIRFLOW_SERVICES)
+
+test-dags:  ## Run the DAG tests inside the Airflow image
+	docker run --rm -v "$(CURDIR)/orchestration:/opt/orchestration:ro" --entrypoint bash \
+		$(AIRFLOW_IMAGE) -c 'pip install --quiet pytest --constraint $(AIRFLOW_CONSTRAINTS) \
+		&& cd /tmp && python -m pytest -p no:cacheprovider /opt/orchestration/tests'
 
 lint:  ## Run linter
 	ruff check .

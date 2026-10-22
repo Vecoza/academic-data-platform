@@ -1,0 +1,14 @@
+# Build context for the orchestration image: only what the image needs.
+*
+!pyproject.toml
+!README.md
+!src/
+!generator/
+!ingestion/
+!quality/
+!dbt/
+dbt/target/
+dbt/logs/
+dbt/.user.yml
+**/__pycache__/
+**/*.egg-info/
