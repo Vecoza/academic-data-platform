@@ -23,5 +23,5 @@ COPY --chown=airflow:0 quality /opt/academic/project/quality
 COPY --chown=airflow:0 dbt /opt/academic/dbt
 
 RUN python -m venv "${PROJECT_VENV}" \
-    && PIP_USER=false "${PROJECT_VENV}/bin/pip" install --no-cache-dir /opt/academic/project \
+    && PIP_USER=false "${PROJECT_VENV}/bin/pip" install --no-cache-dir "/opt/academic/project[pipeline]" \
     && rm -rf /opt/academic/project/build

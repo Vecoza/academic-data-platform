@@ -16,8 +16,8 @@ help:  ## Show available commands
 		END {for (i = 1; i <= n; i++) printf "  \033[36m%-" width "s\033[0m  %s\n", name[i], desc[i]}' \
 		$(MAKEFILE_LIST)
 
-install:  ## Install the package with dev dependencies
-	pip install -e ".[dev]"
+install:  ## Install the package with every extra for development
+	pip install -e ".[pipeline,dashboard,dev]"
 
 up:  ## Start PostgreSQL
 	docker compose up -d

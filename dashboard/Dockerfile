@@ -6,14 +6,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Only the dashboard's own dependencies; the pipeline's (dbt, Faker, Alembic) are not needed.
-RUN pip install "streamlit~=1.66.0" "SQLAlchemy>=2.0" "psycopg[binary]>=3.1" "python-dotenv>=1.0"
-
 COPY pyproject.toml README.md ./
 COPY src src
 COPY dashboard dashboard
 COPY .streamlit .streamlit
-RUN pip install --no-deps . \
+
+# The dashboard extra adds Streamlit to the core; the pipeline's dbt, Faker and Alembic stay out.
+RUN pip install ".[dashboard]" \
     && useradd --create-home dashboard
 
 USER dashboard
