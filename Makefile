@@ -4,7 +4,7 @@ YEARS ?= 8
 DAYS ?= 1
 
 .PHONY: help install up down logs psql check-db migrate migrate-down migrate-status generate \
-	generate-daily lint format test test-unit test-db clean
+	generate-daily ingest ingest-full lint format test test-unit test-db clean
 
 help:  ## Show available commands
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {n++; name[n] = $$1; desc[n] = $$2; \
@@ -45,6 +45,12 @@ generate:  ## Replace all operational data with a full generated history (SEED, 
 
 generate-daily:  ## Simulate the next days of activity after the history (DAYS, default 1)
 	python -m generator --mode daily --days $(DAYS)
+
+ingest:  ## Load new and changed operational rows into warehouse.raw
+	python -m ingestion --mode incremental
+
+ingest-full:  ## Reload every operational row into warehouse.raw (initial load, recovery)
+	python -m ingestion --mode full
 
 lint:  ## Run linter
 	ruff check .

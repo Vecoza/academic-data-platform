@@ -133,3 +133,25 @@ def violates(db: Connection) -> Violates:
 @pytest.fixture
 def factory(db: Connection) -> Factory:
     return Factory(db)
+
+
+@pytest.fixture(scope="session")
+def warehouse_settings(admin_engine: Engine) -> Iterator[DatabaseSettings]:
+    """An empty warehouse database; ingestion creates its schemas and tables."""
+    with temporary_database(admin_engine, "test_warehouse") as settings:
+        yield settings
+
+
+@pytest.fixture
+def warehouse(warehouse_settings: DatabaseSettings) -> Iterator[DatabaseSettings]:
+    """The warehouse test database, emptied before and after each test."""
+    engine = create_engine(warehouse_settings.url)
+
+    def drop_schemas() -> None:
+        with engine.begin() as connection:
+            connection.execute(text("DROP SCHEMA IF EXISTS raw, meta CASCADE"))
+
+    drop_schemas()
+    yield warehouse_settings
+    drop_schemas()
+    engine.dispose()
