@@ -7,7 +7,7 @@ YEARS ?= 8
 DAYS ?= 1
 
 .PHONY: help install up down logs psql check-db migrate migrate-down migrate-status generate \
-	generate-daily ingest ingest-full dbt-build dbt-docs quality lint format test test-unit test-db clean
+	generate-daily ingest ingest-full dbt-build dbt-docs quality pipeline lint format test test-unit test-db clean
 
 help:  ## Show available commands
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {n++; name[n] = $$1; desc[n] = $$2; \
@@ -67,6 +67,8 @@ dbt-docs:  ## Generate the dbt documentation site in dbt/target
 quality:  ## Reconcile row counts across layers and check raw freshness
 	python -m quality
 	$(DBT) source freshness $(DBT_DIRS)
+
+pipeline: migrate generate ingest-full dbt-build quality  ## Run the whole chain on a fresh history
 
 lint:  ## Run linter
 	ruff check .

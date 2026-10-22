@@ -47,9 +47,6 @@ jobs:
       - name: Lint
         run: ruff check .
 
-      - name: Parse dbt project
-        run: dbt parse --project-dir dbt --profiles-dir dbt
-
       - name: Install PostgreSQL 16 client
         run: |
           sudo apt-get update
@@ -62,7 +59,19 @@ jobs:
           -v ON_ERROR_STOP=1 -f docker/init/01_create_warehouse.sql
 
       - name: Apply migrations
-        run: alembic upgrade head
+        run: make migrate
+
+      - name: Generate a small history
+        run: make generate STUDENTS=200
+
+      - name: Ingest into the raw layer
+        run: make ingest-full
+
+      - name: Build and test the warehouse
+        run: make dbt-build
+
+      - name: Run quality checks
+        run: make quality
 
       - name: Test
         run: pytest
