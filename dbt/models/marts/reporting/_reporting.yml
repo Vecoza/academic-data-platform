@@ -16,6 +16,12 @@ models:
         data_tests: [not_null]
       - name: professor_key
         data_tests: [not_null]
+      - name: pass_rate
+        data_tests:
+          - value_between:
+              arguments:
+                min_value: 0
+                max_value: 1
 
   - name: mart_student_gpa_trend
     description: >
@@ -30,6 +36,19 @@ models:
         data_tests: [not_null]
       - name: semester_key
         data_tests: [not_null]
+      - name: semester_gpa
+        description: ECTS-weighted average of passing grades, so always between 6 and 10.
+        data_tests:
+          - value_between:
+              arguments:
+                min_value: 6
+                max_value: 10
+      - name: cumulative_gpa
+        data_tests:
+          - value_between:
+              arguments:
+                min_value: 6
+                max_value: 10
 
   - name: mart_time_to_graduation
     description: >

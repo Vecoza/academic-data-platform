@@ -6,9 +6,15 @@ models:
     columns:
       - name: faculty_id
         data_tests: [unique, not_null]
+      - name: faculty_code
+        data_tests: [unique, not_null]
 
   - name: stg_programs
     description: Current study programs. Grain one row per program.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [program_name, degree_level]
     columns:
       - name: program_id
         data_tests: [unique, not_null]
@@ -23,9 +29,22 @@ models:
     columns:
       - name: professor_id
         data_tests: [unique, not_null]
+      - name: email
+        data_tests: [unique, not_null]
+      - name: faculty_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_faculties')
+                field: faculty_id
 
   - name: stg_semesters
     description: Semesters. Grain one row per semester.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [academic_year, term]
     columns:
       - name: semester_id
         data_tests: [unique, not_null]
@@ -40,17 +59,53 @@ models:
     columns:
       - name: course_id
         data_tests: [unique, not_null]
+      - name: course_code
+        data_tests: [unique, not_null]
+      - name: ects
+        data_tests:
+          - not_null
+          - value_between:
+              arguments:
+                min_value: 1
+                max_value: 15
+      - name: program_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_programs')
+                field: program_id
 
   - name: stg_course_prerequisites
     description: Prerequisite pairs. Grain one row per (course, prerequisite).
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [course_id, prerequisite_course_id]
     columns:
       - name: course_prerequisite_id
         data_tests: [unique, not_null]
+      - name: course_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_courses')
+                field: course_id
+      - name: prerequisite_course_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_courses')
+                field: course_id
 
   - name: stg_students
     description: Latest version of every student; contact data reflects the newest correction.
     columns:
       - name: student_id
+        data_tests: [unique, not_null]
+      - name: index_number
+        data_tests: [unique, not_null]
+      - name: email
         data_tests: [unique, not_null]
       - name: student_status
         data_tests:
@@ -63,6 +118,20 @@ models:
     columns:
       - name: student_program_id
         data_tests: [unique, not_null]
+      - name: student_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_students')
+                field: student_id
+      - name: program_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_programs')
+                field: program_id
       - name: period_reason
         data_tests:
           - accepted_values:
@@ -71,15 +140,53 @@ models:
 
   - name: stg_course_offerings
     description: Courses taught in a semester. Grain one row per offering.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [course_id, semester_id]
     columns:
       - name: offering_id
         data_tests: [unique, not_null]
+      - name: course_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_courses')
+                field: course_id
+      - name: semester_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_semesters')
+                field: semester_id
+      - name: professor_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_professors')
+                field: professor_id
 
   - name: stg_enrollments
     description: Latest version of every enrollment that still exists in the source.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [student_id, offering_id]
     columns:
       - name: enrollment_id
         data_tests: [unique, not_null]
+      - name: student_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_students')
+                field: student_id
+      - name: offering_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_course_offerings')
+                field: offering_id
       - name: enrollment_status
         data_tests:
           - accepted_values:
@@ -91,6 +198,12 @@ models:
     columns:
       - name: exam_term_id
         data_tests: [unique, not_null]
+      - name: offering_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_course_offerings')
+                field: offering_id
       - name: term_type
         data_tests:
           - accepted_values:
@@ -99,6 +212,38 @@ models:
 
   - name: stg_exam_attempts
     description: Latest version of every exam attempt, including grade corrections.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [enrollment_id, exam_term_id]
     columns:
       - name: attempt_id
         data_tests: [unique, not_null]
+      - name: enrollment_id
+        description: Every attempt must belong to an existing enrollment.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_enrollments')
+                field: enrollment_id
+      - name: exam_term_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_exam_terms')
+                field: exam_term_id
+      - name: grade
+        data_tests:
+          - not_null
+          - value_between:
+              arguments:
+                min_value: 5
+                max_value: 10
+      - name: points
+        data_tests:
+          - not_null
+          - value_between:
+              arguments:
+                min_value: 0
+                max_value: 100

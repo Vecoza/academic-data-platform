@@ -72,6 +72,11 @@ models:
     description: >
       Grain one row per enrollment: one student in one course offering. Key enrollment_id.
       student_sk is the student version valid on the enrollment date (UTC).
+    data_tests:
+      - student_version_valid_on:
+          arguments:
+            column_name: student_sk
+            business_timestamp: enrolled_at
     columns:
       - name: enrollment_id
         data_tests: [unique, not_null]
@@ -128,11 +133,28 @@ models:
           - accepted_values:
               arguments:
                 values: [enrolled, passed, failed, withdrawn]
+      - name: final_grade
+        data_tests:
+          - value_between:
+              arguments:
+                min_value: 5
+                max_value: 10
+      - name: final_points
+        data_tests:
+          - value_between:
+              arguments:
+                min_value: 0
+                max_value: 100
 
   - name: fact_exam_attempts
     description: >
       Grain one row per exam attempt. Key attempt_id. student_sk is the student version valid
       on the attempt date (UTC); attempt_number counts the attempts of the enrollment.
+    data_tests:
+      - student_version_valid_on:
+          arguments:
+            column_name: student_sk
+            business_timestamp: attempted_at
     columns:
       - name: attempt_id
         data_tests: [unique, not_null]
@@ -183,3 +205,17 @@ models:
           - accepted_values:
               arguments:
                 values: [january, february, june, july, september]
+      - name: grade
+        data_tests:
+          - not_null
+          - value_between:
+              arguments:
+                min_value: 5
+                max_value: 10
+      - name: points
+        data_tests:
+          - not_null
+          - value_between:
+              arguments:
+                min_value: 0
+                max_value: 100
