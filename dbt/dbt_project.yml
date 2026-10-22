@@ -1,0 +1,31 @@
+name: academic_warehouse
+version: "1.0.0"
+config-version: 2
+profile: academic_warehouse
+
+model-paths: ["models"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+target-path: "target"
+clean-targets: ["target", "logs"]
+
+flags:
+  send_anonymous_usage_stats: false
+
+vars:
+  date_spine_start: "2015-01-01"
+  date_spine_end: "2030-12-31"
+  open_period_end: "9999-12-31"
+  fact_lookback_days: 3
+
+models:
+  academic_warehouse:
+    staging:
+      +schema: staging
+      +materialized: view
+    intermediate:
+      +schema: intermediate
+      +materialized: view
+    marts:
+      +schema: marts
+      +materialized: table

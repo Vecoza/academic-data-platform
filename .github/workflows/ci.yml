@@ -47,6 +47,9 @@ jobs:
       - name: Lint
         run: ruff check .
 
+      - name: Parse dbt project
+        run: dbt parse --project-dir dbt --profiles-dir dbt
+
       - name: Install PostgreSQL 16 client
         run: |
           sudo apt-get update

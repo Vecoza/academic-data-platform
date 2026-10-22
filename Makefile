@@ -1,10 +1,13 @@
+-include .env
+export
+
 SEED ?= 42
 STUDENTS ?= 15000
 YEARS ?= 8
 DAYS ?= 1
 
 .PHONY: help install up down logs psql check-db migrate migrate-down migrate-status generate \
-	generate-daily ingest ingest-full lint format test test-unit test-db clean
+	generate-daily ingest ingest-full dbt-build dbt-docs lint format test test-unit test-db clean
 
 help:  ## Show available commands
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {n++; name[n] = $$1; desc[n] = $$2; \
@@ -51,6 +54,15 @@ ingest:  ## Load new and changed operational rows into warehouse.raw
 
 ingest-full:  ## Reload every operational row into warehouse.raw (initial load, recovery)
 	python -m ingestion --mode full
+
+DBT = dbt --no-use-colors
+DBT_DIRS = --project-dir dbt --profiles-dir dbt
+
+dbt-build:  ## Build and test the warehouse models
+	$(DBT) build $(DBT_DIRS)
+
+dbt-docs:  ## Generate the dbt documentation site in dbt/target
+	$(DBT) docs generate $(DBT_DIRS)
 
 lint:  ## Run linter
 	ruff check .
