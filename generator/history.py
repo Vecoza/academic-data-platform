@@ -73,6 +73,27 @@ def grade_for_points(points: int) -> int:
     return 5
 
 
+def course_term(course: Course) -> str:
+    """Odd program semesters are taught in winter, even ones in summer."""
+    return "winter" if course.semester_number % 2 == 1 else "summer"
+
+
+def exam_dates(course: Course, academic_year: int) -> list[tuple[str, date]]:
+    """Exam terms of a course offered in `academic_year`, spread over a few days per course."""
+    return [
+        (term_type, date(academic_year + 1, month, day) + timedelta(days=course.course_id % 5))
+        for term_type, month, day in EXAM_TERMS[course_term(course)]
+    ]
+
+
+def program_semester(study_year: int, term: str, duration_semesters: int) -> int:
+    """Program semester for a study year and term, capped at the last semester of that term."""
+    semester = 2 * study_year - (1 if term == "winter" else 0)
+    last = duration_semesters
+    last_of_term = last if (last % 2 == 1) == (term == "winter") else last - 1
+    return min(semester, last_of_term)
+
+
 def cohort_sizes(rng: random.Random, total: int, years: int) -> list[int]:
     """Split `total` students over `years` cohorts of similar size, summing exactly to `total`."""
     weights = [1 + rng.uniform(-COHORT_SIZE_VARIATION, COHORT_SIZE_VARIATION) for _ in range(years)]
@@ -245,12 +266,8 @@ class Simulation:
         return len(self.student_programs) - 1
 
     def current_semester(self, state: StudentState, year: int, term: str) -> int:
-        """Program semester the student is in; after the nominal length, the last of that term."""
         study_year = year - state.program_start_year + 1
-        semester = 2 * study_year - (1 if term == "winter" else 0)
-        last = state.program.duration_semesters
-        last_of_term = last if (last % 2 == 1) == (term == "winter") else last - 1
-        return min(semester, last_of_term)
+        return program_semester(study_year, term, state.program.duration_semesters)
 
     def enroll(
         self,
@@ -378,11 +395,9 @@ class Simulation:
             if self.rng.random() >= PRIMARY_PROFESSOR_SHARE:
                 professor_id = self.rng.choice(self.professors_by_faculty[faculty_id])
             offering_id = len(self.offerings) + 1
-            term = "winter" if course.semester_number % 2 == 1 else "summer"
             terms = []
-            for term_type, month, day in EXAM_TERMS[term]:
+            for term_type, exam_date in exam_dates(course, year):
                 self.exam_term_count += 1
-                exam_date = date(year + 1, month, day) + timedelta(days=course.course_id % 5)
                 terms.append(ExamTerm(self.exam_term_count, offering_id, exam_date, term_type))
             self.offerings[key] = OfferingDraft(
                 offering_id, course.course_id, semester_id, professor_id, terms
