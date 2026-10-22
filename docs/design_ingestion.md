@@ -123,3 +123,8 @@ In the incremental run, almost all of the time goes to the key comparison for de
 - **Quiet tables are re-read.** The watermark only moves when a table changes. A table that has not changed since its watermark was set keeps its newest rows inside the overlap window, so every incremental run reads them again and skips them as duplicates. This is cheap for small tables and bounded by the window for large ones.
 - **Concurrent runs.** Concurrent runs of the pipeline are not coordinated. Orchestration is expected to run one ingestion at a time.
 - **Hard deletes with key reuse.** A key that is deleted and later reused would be flagged as deleted and then appear again as a new version. Identity keys are never reused by the source, so this does not happen here.
+
+## Possible improvements
+
+- **Run delete detection less often, or only for tables that allow deletes.** In the operational model only `enrollments` can lose rows: every other table is protected by `ON DELETE RESTRICT` or never has rows removed. Scanning keys for `enrollments` only, or for all tables once a day instead of every run, would remove most of the incremental run time.
+- **Change data capture.** Logical replication or Debezium would replace both the watermark query and the key scan, and would also capture every intermediate version of a row.
