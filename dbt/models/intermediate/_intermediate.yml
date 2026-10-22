@@ -1,0 +1,30 @@
+version: 2
+
+models:
+  - name: int_enrollment_outcomes
+    description: >
+      Grain one row per enrollment. Number of attempts, the grade and points of the last attempt
+      (the passing one, if any), whether and when the course was passed, and the ECTS earned.
+    columns:
+      - name: enrollment_id
+        data_tests: [unique, not_null]
+      - name: student_id
+        data_tests: [not_null]
+      - name: course_id
+        data_tests: [not_null]
+
+  - name: int_student_semester_progress
+    description: >
+      Grain one row per student and semester with enrollments. ECTS attempted and earned in
+      the semester, ECTS-weighted grade points of passed courses, and cumulative ECTS.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [student_id, semester_id]
+    columns:
+      - name: student_id
+        data_tests: [not_null]
+      - name: semester_id
+        data_tests: [not_null]
+      - name: semester_sequence
+        data_tests: [not_null]
