@@ -16,6 +16,7 @@ dependencies = [
     "Faker~=40.43.0",
     "psycopg[binary]>=3.1",
     "SQLAlchemy>=2.0",
+    "streamlit~=1.66.0",
     "python-dotenv>=1.0",
 ]
 
@@ -28,7 +29,7 @@ dev = [
 
 [tool.setuptools.packages.find]
 where = ["src", "."]
-include = ["academic_platform*", "generator*", "ingestion*", "quality*"]
+include = ["academic_platform*", "dashboard*", "generator*", "ingestion*", "quality*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
