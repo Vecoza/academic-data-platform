@@ -34,6 +34,15 @@ class DatabaseSettings:
         """Settings for the analytical database on the same server."""
         return replace(cls.from_env(), name=os.getenv("WAREHOUSE_DB", "warehouse"))
 
+    @classmethod
+    def for_dashboard(cls) -> DatabaseSettings:
+        """Warehouse settings with the read-only dashboard role instead of the owner."""
+        return replace(
+            cls.for_warehouse(),
+            user=os.getenv("DASHBOARD_USER", "dashboard_reader"),
+            password=os.getenv("DASHBOARD_PASSWORD", "adp_dashboard_pw_2026"),
+        )
+
     @property
     def url(self) -> str:
         """SQLAlchemy connection URL using the psycopg 3 driver."""

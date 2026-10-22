@@ -44,3 +44,14 @@ def test_dsn_quotes_special_characters(monkeypatch):
 
     assert "password='p@ss word'" in dsn
     assert "dbname=uni" in dsn
+
+
+def test_dashboard_uses_the_reader_role_on_the_warehouse(monkeypatch):
+    monkeypatch.setenv("POSTGRES_USER", "owner")
+    monkeypatch.setenv("WAREHOUSE_DB", "dwh")
+    monkeypatch.setenv("DASHBOARD_USER", "reader")
+    monkeypatch.setenv("DASHBOARD_PASSWORD", "secret")
+
+    settings = DatabaseSettings.for_dashboard()
+
+    assert (settings.user, settings.password, settings.name) == ("reader", "secret", "dwh")
