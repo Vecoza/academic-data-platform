@@ -75,3 +75,25 @@ jobs:
 
       - name: Test
         run: pytest
+
+  dags:
+    runs-on: ubuntu-24.04
+    env:
+      AIRFLOW_VERSION: "3.3.2"
+      PYTHON_VERSION: "3.11"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install Airflow with the official constraints
+        run: >-
+          pip install "apache-airflow==${AIRFLOW_VERSION}" pytest
+          --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
+
+      - name: Test DAGs
+        run: pytest -p no:cacheprovider orchestration/tests
