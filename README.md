@@ -106,7 +106,7 @@ academic-data-platform/
 - [x] Project foundation, containerized database, continuous integration
 - [x] Operational schema design (3NF) and migrations
 - [x] Synthetic data generator
-- [ ] Incremental ingestion pipeline
+- [x] Incremental ingestion pipeline
 - [ ] Warehouse: staging layer, star schema, SCD Type 2
 - [ ] Data quality tests
 - [ ] Orchestration
