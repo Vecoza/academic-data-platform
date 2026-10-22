@@ -131,10 +131,7 @@ About 96% of the load time is spent in per-row checks: the foreign-key checks Po
 - **An early exit in the prerequisite trigger** for courses without prerequisites. Alternating runs showed no difference: 47.8 and 60.8 s with it, against 41.8 and 62.8 s without.
 - **Larger server settings** (`shared_buffers = 512MB`, `max_wal_size = 4GB`). The results (98 and 139 s) stayed within the noise of the default settings.
 
-**What would help.** Each of these trades away something that was chosen on purpose, so none is applied:
-- **Statement-level triggers with transition tables:** one set-based check per `COPY` batch instead of one query per row. This changes the semantics and the error reporting of the business rules.
-- **Disabling triggers and foreign keys during the bulk load:** it contradicts the decision that a successful load proves the data obeys every rule.
-- **A faster database host:** most of the per-row cost comes from running PostgreSQL in a virtual machine. CI's PostgreSQL runs directly on a Linux runner and is not affected the same way.
+**Decision.** The load is kept as it is: every trigger and foreign key stays enabled. On this laptop the full load takes between about 3 and 5.5 minutes depending on the machine's state, and the same tests run three times faster in CI. The options that would make it faster are listed under possible improvements.
 
 ## Daily mode
 
@@ -179,3 +176,9 @@ Full mode sets the clock to 1 October after the last academic year of the histor
 Daily mode never sets `updated_at` itself; the `set_updated_at()` triggers do. Because each day commits separately, every updated row gets that day's transaction time.
 
 The hidden ability and difficulty values of the history are not stored in the database. Daily mode estimates them from the stored results instead: the student's and the course's average points so far.
+
+## Possible improvements
+
+- **Statement-level business-rule triggers.** Rewrite the prerequisite and exam-attempt rules as `AFTER INSERT ... FOR EACH STATEMENT` triggers with transition tables. Each `COPY` batch would then be checked with one set-based query instead of one query per row, which should cut most of the trigger cost of the bulk load. The trade-off: the rules would be checked after the batch rather than row by row, so a violation would report the first offending row of the batch instead of rejecting the exact insert, and the single-row semantics would have to be re-tested.
+- **Optional bulk-load mode without checks.** Disable triggers during `COPY` and validate the loaded data afterwards with the same rules expressed as queries. It is faster, but a load would no longer prove by itself that the data obeys every rule.
+- **A database host outside a desktop virtual machine.** Most of the per-row cost observed locally comes from running PostgreSQL inside Docker Desktop.
