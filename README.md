@@ -52,7 +52,11 @@ Transformations written in SQL with dbt turn raw data into a dimensional model:
 Automated tests check uniqueness, completeness, referential integrity and business rules at every layer. The whole pipeline runs as a scheduled workflow: generate data, ingest, transform, test.
 
 **6. Dashboard**
-A small dashboard presents the key academic metrics to the people who need them.
+A Streamlit dashboard presents the key academic metrics to the people who need them: overall figures and trends, course pass rates by faculty, program, year and professor, individual student progress against their cohort, dropout risk, and time to graduation. It reads only the reporting marts, through a read-only database role.
+
+![Dashboard overview](docs/images/dashboard_overview.png)
+
+![Course pass rates](docs/images/dashboard_pass_rates.png)
 
 ## Architecture
 
@@ -111,7 +115,7 @@ academic-data-platform/
 - [x] Warehouse: staging layer, star schema, SCD Type 2
 - [x] Data quality tests
 - [x] Orchestration
-- [ ] Dashboard
+- [x] Dashboard
 - [ ] Documentation: ERDs and design notes
 
 ## License
