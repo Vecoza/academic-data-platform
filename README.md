@@ -110,7 +110,7 @@ academic-data-platform/
 - [x] Incremental ingestion pipeline
 - [x] Warehouse: staging layer, star schema, SCD Type 2
 - [x] Data quality tests
-- [ ] Orchestration
+- [x] Orchestration
 - [ ] Dashboard
 - [ ] Documentation: ERDs and design notes
 
