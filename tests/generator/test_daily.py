@@ -4,31 +4,19 @@ from datetime import date, timedelta
 import pytest
 from sqlalchemy import Engine, text
 
-from generator.daily import first_daily_date, reset_clock, run_days, run_until
-from generator.history import simulate_history
-from generator.loader import OLTP_TABLES, load_generated_data
-from generator.reference import LAST_ACADEMIC_YEAR, generate_reference_data
+from generator.daily import run_days, run_until
+from generator.loader import OLTP_TABLES
+from tests.support import load_small_history
 
 pytestmark = pytest.mark.db
 
-SEED = 42
-STUDENTS = 150
 FIRST_DAY = date(2026, 10, 1)
 WINTER_EXAMS = date(2027, 1, 26)
 
 
-def generate_history(engine: Engine) -> Engine:
-    reference = generate_reference_data(seed=SEED, years=8)
-    history = simulate_history(seed=SEED, student_count=STUDENTS, reference=reference)
-    with engine.begin() as connection:
-        load_generated_data(connection, reference, history)
-        reset_clock(connection, first_daily_date(LAST_ACADEMIC_YEAR), SEED)
-    return engine
-
-
 @pytest.fixture
 def university(committing_engine: Engine) -> Engine:
-    return generate_history(committing_engine)
+    return load_small_history(committing_engine)
 
 
 def scalar(engine: Engine, statement: str, **params: object) -> object:
@@ -180,7 +168,7 @@ def test_same_seed_and_dates_produce_identical_data_in_two_databases(
     committing_engine: Engine, other_committing_engine: Engine
 ) -> None:
     for engine in (committing_engine, other_committing_engine):
-        generate_history(engine)
+        load_small_history(engine)
         run_days(engine, 6)
         move_clock(engine, WINTER_EXAMS)
         run_days(engine, 4)

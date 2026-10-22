@@ -7,9 +7,26 @@ from collections.abc import Callable
 from contextlib import AbstractContextManager
 from datetime import date
 
-from sqlalchemy import Connection, text
+from sqlalchemy import Connection, Engine, text
+
+from generator.daily import first_daily_date, reset_clock
+from generator.history import simulate_history
+from generator.loader import load_generated_data
+from generator.reference import LAST_ACADEMIC_YEAR, generate_reference_data
 
 Violates = Callable[[str], AbstractContextManager[None]]
+
+HISTORY_SEED = 42
+
+
+def load_small_history(engine: Engine, students: int = 150) -> Engine:
+    """Commit a small generated history and set the simulation clock, like full mode does."""
+    reference = generate_reference_data(seed=HISTORY_SEED, years=8)
+    history = simulate_history(seed=HISTORY_SEED, student_count=students, reference=reference)
+    with engine.begin() as connection:
+        load_generated_data(connection, reference, history)
+        reset_clock(connection, first_daily_date(LAST_ACADEMIC_YEAR), HISTORY_SEED)
+    return engine
 
 
 class Factory:
