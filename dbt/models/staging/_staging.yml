@@ -1,0 +1,104 @@
+version: 2
+
+models:
+  - name: stg_faculties
+    description: Current faculties. Grain one row per faculty.
+    columns:
+      - name: faculty_id
+        data_tests: [unique, not_null]
+
+  - name: stg_programs
+    description: Current study programs. Grain one row per program.
+    columns:
+      - name: program_id
+        data_tests: [unique, not_null]
+      - name: degree_level
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [bachelor, master]
+
+  - name: stg_professors
+    description: Current professors. Grain one row per professor.
+    columns:
+      - name: professor_id
+        data_tests: [unique, not_null]
+
+  - name: stg_semesters
+    description: Semesters. Grain one row per semester.
+    columns:
+      - name: semester_id
+        data_tests: [unique, not_null]
+      - name: term
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [winter, summer]
+
+  - name: stg_courses
+    description: Current courses. Grain one row per course.
+    columns:
+      - name: course_id
+        data_tests: [unique, not_null]
+
+  - name: stg_course_prerequisites
+    description: Prerequisite pairs. Grain one row per (course, prerequisite).
+    columns:
+      - name: course_prerequisite_id
+        data_tests: [unique, not_null]
+
+  - name: stg_students
+    description: Latest version of every student; contact data reflects the newest correction.
+    columns:
+      - name: student_id
+        data_tests: [unique, not_null]
+      - name: student_status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [active, graduated, dropped_out, suspended]
+
+  - name: stg_student_programs
+    description: Program periods of students with business dates. Grain one row per period.
+    columns:
+      - name: student_program_id
+        data_tests: [unique, not_null]
+      - name: period_reason
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [enrollment, transfer]
+
+  - name: stg_course_offerings
+    description: Courses taught in a semester. Grain one row per offering.
+    columns:
+      - name: offering_id
+        data_tests: [unique, not_null]
+
+  - name: stg_enrollments
+    description: Latest version of every enrollment that still exists in the source.
+    columns:
+      - name: enrollment_id
+        data_tests: [unique, not_null]
+      - name: enrollment_status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [enrolled, passed, failed, withdrawn]
+
+  - name: stg_exam_terms
+    description: Scheduled exam dates. Grain one row per exam term.
+    columns:
+      - name: exam_term_id
+        data_tests: [unique, not_null]
+      - name: term_type
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [january, february, june, july, september]
+
+  - name: stg_exam_attempts
+    description: Latest version of every exam attempt, including grade corrections.
+    columns:
+      - name: attempt_id
+        data_tests: [unique, not_null]
