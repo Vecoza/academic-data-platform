@@ -125,4 +125,11 @@ Locally, on the default history (15,000 students), starting at the beginning of 
 
 **Log masking.** Airflow masks connection passwords wherever they appear in task logs. The first local password was the word "academic", so DAG names appeared as `***_daily`. The default password is now `adp_local_pw_2026`, a value that cannot occur inside a name, and task logs show `academic_daily` in full.
 
-The image is 739 MB.
+**Staging query plans.** A later run took 364 s, 278 s of it in the `dbt_build` task (263 s inside dbt), and 132 s of that in a single relationships test between two staging views. The staging views picked the latest version of each key with a filter on `ROW_NUMBER()`. PostgreSQL estimates such a filter at 0.5% of the rows, so it chose a nested-loop anti-join over 450,000 × 3,000 rows. Rewriting the views with `DISTINCT ON`, which the planner estimates from column statistics, gave identical staging output. The next run took 38 s in total, with `dbt_build` at 22 s and the same test under a second.
+
+| Run | Total | generate | ingest | dbt_build | quality |
+|---|---|---|---|---|---|
+| Before the staging fix (5 Oct, an enrollment day) | 364 s | 23 s | 12 s | 278 s | 47 s |
+| After the staging fix (6 Oct) | 38 s | 1 s | 5 s | 22 s | 6 s |
+
+**Image size.** The image is 704 MB compressed (`docker image inspect`) and 3.55 GB unpacked on disk (`docker image ls` with Docker Desktop's containerd image store). The project's own layers add about 247 MB: the project virtualenv with dbt (241 MB) and the pinned providers (6 MB). The rest is the official Airflow image.

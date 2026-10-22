@@ -7,12 +7,14 @@ The warehouse turns the raw copy of the operational database into a dimensional 
 | Layer | Schema | Materialization | Purpose |
 |---|---|---|---|
 | Sources | `raw` | tables written by ingestion | Every version of every source row, with load metadata |
-| Staging | `staging` | views | One model per source table: latest version per key, deleted keys removed, columns renamed and cast |
+| Staging | `staging` | views | One model per source table: latest version per key (`DISTINCT ON`), deleted keys removed, columns renamed and cast |
 | Intermediate | `intermediate` | tables | Reusable building blocks: enrollment outcomes, semester progress |
 | Core | `marts` | tables and incremental tables | Star schema: dimensions and facts |
 | Reporting | `marts` | tables | Marts answering the business questions |
 
 **Staging is views, everything after it is tables.** A staging view costs nothing to build and always shows the current raw data. Intermediate models are read by several facts, marts and tests. As views, every one of those would re-run the latest-version window functions over half a million rows: with views, the tests on the intermediate layer alone took three minutes; as tables, the whole layer builds in seconds.
+
+**Why `DISTINCT ON` in staging.** A filter on `ROW_NUMBER() = 1` is estimated by PostgreSQL at 0.5% of the input rows, so queries on top of the staging views were planned for a few thousand rows instead of hundreds of thousands. That led to nested-loop joins that took minutes. `DISTINCT ON (key)` returns the same rows, and the planner estimates its output from the key's statistics.
 
 **Statistics after every build.** Each table model runs `ANALYZE` in a post-hook. PostgreSQL does not collect statistics for a table created with `CREATE TABLE AS` until autovacuum gets to it. Without them, the planner chose a nested-loop plan for a mart join that ran for more than ten minutes; with them, it takes seconds.
 
@@ -79,6 +81,8 @@ Both facts are incremental models with a `unique_key` and the `delete+insert` st
 - **Attempt numbering.** `attempt_number` is computed over all attempts of an enrollment before the incremental filter, so rebuilt rows keep the right number.
 
 **Verified.** After 10 simulated days, an incremental ingestion and an incremental build, both facts were compared row by row with a `--full-refresh` build: no differences. All 14 enrollments deleted in the source by then were absent from the facts.
+
+**Which timestamp drives the window.** The window is anchored on the newest change already in the fact table, not on the time of the run. A pause in loading therefore never skips data: the next run starts from the last change it processed. The anchor is the source change time (`updated_at`), not the load time (`_loaded_at`). The two differ only when a row reaches the warehouse much later than it changed in the source. The ingestion overlap of 10 minutes and the 3-day lookback both cover far longer delays than the pipeline produces.
 
 **Known limit.** If a student's program periods change retroactively, for example a transfer recorded with a past date, existing fact rows keep their old `student_sk` until they change again or the facts are rebuilt with `--full-refresh`.
 
