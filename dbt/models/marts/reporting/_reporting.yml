@@ -1,0 +1,59 @@
+version: 2
+
+models:
+  - name: mart_course_pass_rates
+    description: >
+      Grain one row per course, semester and professor. Enrollments, passes, failures, pass rate
+      over decided enrollments, first-attempt pass rate, average passing grade and attempts.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [course_key, semester_key, professor_key]
+    columns:
+      - name: course_key
+        data_tests: [not_null]
+      - name: semester_key
+        data_tests: [not_null]
+      - name: professor_key
+        data_tests: [not_null]
+
+  - name: mart_student_gpa_trend
+    description: >
+      Grain one row per student and semester with enrollments. Semester GPA, running cumulative
+      GPA, change against the previous semester and a rolling three-semester average.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [student_id, semester_key]
+    columns:
+      - name: student_id
+        data_tests: [not_null]
+      - name: semester_key
+        data_tests: [not_null]
+
+  - name: mart_time_to_graduation
+    description: >
+      Grain one row per program and cohort (academic year the student started the program).
+      Graduation rate, average and median years to graduate, and the share graduating on time.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [program_key, cohort_year]
+    columns:
+      - name: program_key
+        data_tests: [not_null]
+      - name: cohort_year
+        data_tests: [not_null]
+
+  - name: mart_dropout_risk
+    description: >
+      Grain one row per active student. Rule-based flags for low ECTS, repeated failures and
+      low GPA, a risk score (number of flags) and a risk level.
+    columns:
+      - name: student_id
+        data_tests: [unique, not_null]
+      - name: risk_level
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [low, medium, high]

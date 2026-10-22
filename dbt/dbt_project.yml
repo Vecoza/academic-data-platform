@@ -26,6 +26,8 @@ models:
     intermediate:
       +schema: intermediate
       +materialized: table
+      +post-hook: "ANALYZE {{ this }}"
     marts:
       +schema: marts
       +materialized: table
+      +post-hook: "ANALYZE {{ this }}"
