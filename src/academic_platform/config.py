@@ -6,6 +6,7 @@ import os
 from dataclasses import dataclass, replace
 
 from dotenv import load_dotenv
+from psycopg.conninfo import make_conninfo
 
 load_dotenv()
 
@@ -39,4 +40,11 @@ class DatabaseSettings:
         return (
             f"postgresql+psycopg://{self.user}:{self.password}"
             f"@{self.host}:{self.port}/{self.name}"
+        )
+
+    @property
+    def dsn(self) -> str:
+        """libpq connection string for direct psycopg connections."""
+        return make_conninfo(
+            host=self.host, port=self.port, dbname=self.name, user=self.user, password=self.password
         )

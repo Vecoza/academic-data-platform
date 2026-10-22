@@ -34,3 +34,13 @@ def test_warehouse_uses_warehouse_db_and_shares_server(monkeypatch):
 def test_warehouse_db_defaults_to_warehouse(monkeypatch):
     monkeypatch.delenv("WAREHOUSE_DB", raising=False)
     assert DatabaseSettings.for_warehouse().name == "warehouse"
+
+
+def test_dsn_quotes_special_characters(monkeypatch):
+    monkeypatch.setenv("POSTGRES_PASSWORD", "p@ss word")
+    monkeypatch.setenv("POSTGRES_DB", "uni")
+
+    dsn = DatabaseSettings.from_env().dsn
+
+    assert "password='p@ss word'" in dsn
+    assert "dbname=uni" in dsn
