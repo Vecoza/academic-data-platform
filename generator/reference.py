@@ -212,9 +212,9 @@ def build_semesters(years: int) -> list[Semester]:
     return semesters
 
 
-def unique_email(first_name: str, last_name: str, faculty_code: str, taken: set[str]) -> str:
+def unique_email(first_name: str, last_name: str, subdomain: str, taken: set[str]) -> str:
     local_part = f"{ascii_slug(first_name)}.{ascii_slug(last_name)}"
-    domain = f"{faculty_code.lower()}.{EMAIL_DOMAIN}"
+    domain = f"{subdomain.lower()}.{EMAIL_DOMAIN}"
     email = f"{local_part}@{domain}"
     suffix = 2
     while email in taken:
