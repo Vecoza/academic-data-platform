@@ -1,0 +1,185 @@
+version: 2
+
+models:
+  - name: dim_date
+    description: Calendar from 2015 to 2030. Grain one row per day. Key date_key (YYYYMMDD).
+    columns:
+      - name: date_key
+        data_tests: [unique, not_null]
+
+  - name: dim_semester
+    description: Grain one row per semester. Key semester_key (source semester id).
+    columns:
+      - name: semester_key
+        data_tests: [unique, not_null]
+      - name: term
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [winter, summer]
+
+  - name: dim_program
+    description: Grain one row per study program, with its faculty. Key program_key.
+    columns:
+      - name: program_key
+        data_tests: [unique, not_null]
+
+  - name: dim_course
+    description: Grain one row per course, with its program and faculty. Key course_key.
+    columns:
+      - name: course_key
+        data_tests: [unique, not_null]
+      - name: program_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_program')
+                field: program_key
+
+  - name: dim_professor
+    description: Grain one row per professor, with their faculty. Key professor_key.
+    columns:
+      - name: professor_key
+        data_tests: [unique, not_null]
+
+  - name: dim_student
+    description: >
+      Type 2 dimension on program membership. Grain one row per student and program period,
+      built from the business dates of student_programs: valid_from is inclusive, valid_to is
+      exclusive and 9999-12-31 for the current period. Personal and contact attributes (name,
+      email, city, status) are Type 1 and show the latest value on every version.
+      Key student_sk (hash of student_id and valid_from).
+    columns:
+      - name: student_sk
+        data_tests: [unique, not_null]
+      - name: student_id
+        data_tests: [not_null]
+      - name: program_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_program')
+                field: program_key
+      - name: student_status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [active, graduated, dropped_out, suspended]
+
+  - name: fact_enrollments
+    description: >
+      Grain one row per enrollment: one student in one course offering. Key enrollment_id.
+      student_sk is the student version valid on the enrollment date (UTC).
+    columns:
+      - name: enrollment_id
+        data_tests: [unique, not_null]
+      - name: student_sk
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_student')
+                field: student_sk
+      - name: course_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_course')
+                field: course_key
+      - name: semester_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_semester')
+                field: semester_key
+      - name: professor_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_professor')
+                field: professor_key
+      - name: program_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_program')
+                field: program_key
+      - name: enrolled_date_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+      - name: passed_date_key
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+      - name: enrollment_status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [enrolled, passed, failed, withdrawn]
+
+  - name: fact_exam_attempts
+    description: >
+      Grain one row per exam attempt. Key attempt_id. student_sk is the student version valid
+      on the attempt date (UTC); attempt_number counts the attempts of the enrollment.
+    columns:
+      - name: attempt_id
+        data_tests: [unique, not_null]
+      - name: enrollment_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('fact_enrollments')
+                field: enrollment_id
+      - name: student_sk
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_student')
+                field: student_sk
+      - name: course_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_course')
+                field: course_key
+      - name: semester_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_semester')
+                field: semester_key
+      - name: professor_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_professor')
+                field: professor_key
+      - name: attempt_date_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+      - name: term_type
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [january, february, june, july, september]
