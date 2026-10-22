@@ -94,6 +94,37 @@ def program_semester(study_year: int, term: str, duration_semesters: int) -> int
     return min(semester, last_of_term)
 
 
+def make_student(
+    rng: random.Random,
+    faker: Faker,
+    student_id: int,
+    year: int,
+    sequence: int,
+    degree_level: str,
+    taken_emails: set[str],
+) -> Student:
+    """A newly admitted student of the cohort starting in `year`."""
+    gender = rng.choices(list(GENDER_WEIGHTS), list(GENDER_WEIGHTS.values()))[0]
+    first_name = {
+        "female": faker.first_name_female,
+        "male": faker.first_name_male,
+    }.get(gender, faker.first_name)()
+    last_name = faker.last_name()
+    age = ENTRY_AGE[degree_level] + rng.choice(EXTRA_AGE_CHOICES)
+    return Student(
+        student_id=student_id,
+        index_number=f"{year}-{sequence:05d}",
+        first_name=first_name,
+        last_name=last_name,
+        email=unique_email(first_name, last_name, STUDENT_EMAIL_SUBDOMAIN, taken_emails),
+        date_of_birth=date(year - age, 1, 1) + timedelta(days=rng.randrange(365)),
+        gender=gender,
+        city=faker.city(),
+        enrollment_year=year,
+        status="active",
+    )
+
+
 def cohort_sizes(rng: random.Random, total: int, years: int) -> list[int]:
     """Split `total` students over `years` cohorts of similar size, summing exactly to `total`."""
     weights = [1 + rng.uniform(-COHORT_SIZE_VARIATION, COHORT_SIZE_VARIATION) for _ in range(years)]
@@ -219,27 +250,16 @@ class Simulation:
     def admit_cohort(self, year: int, size: int) -> None:
         programs = list(self.programs.values())
         weights = [DEGREE_WEIGHTS[program.degree_level] for program in programs]
-        genders, gender_weights = list(GENDER_WEIGHTS), list(GENDER_WEIGHTS.values())
         for sequence in range(1, size + 1):
             program = self.rng.choices(programs, weights)[0]
-            gender = self.rng.choices(genders, gender_weights)[0]
-            first_name = {
-                "female": self.faker.first_name_female,
-                "male": self.faker.first_name_male,
-            }.get(gender, self.faker.first_name)()
-            last_name = self.faker.last_name()
-            age = ENTRY_AGE[program.degree_level] + self.rng.choice(EXTRA_AGE_CHOICES)
-            student = Student(
+            student = make_student(
+                self.rng,
+                self.faker,
                 student_id=len(self.students) + 1,
-                index_number=f"{year}-{sequence:05d}",
-                first_name=first_name,
-                last_name=last_name,
-                email=unique_email(first_name, last_name, STUDENT_EMAIL_SUBDOMAIN, self.emails),
-                date_of_birth=date(year - age, 1, 1) + timedelta(days=self.rng.randrange(365)),
-                gender=gender,
-                city=self.faker.city(),
-                enrollment_year=year,
-                status="active",
+                year=year,
+                sequence=sequence,
+                degree_level=program.degree_level,
+                taken_emails=self.emails,
             )
             self.students.append(student)
             self.states.append(
