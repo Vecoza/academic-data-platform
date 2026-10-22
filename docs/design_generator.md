@@ -68,10 +68,14 @@ The simulation walks through the academic years in order. Every decision uses on
 Offerings and their exam terms are created when the first student enrolls. 80% of offerings are taught by the course's regular professor. Capacity is set to about 120% of the enrollments.
 
 **Exams.**
-- **Points:** `65 + 12 × ability − 8 × difficulty + 4 × previous attempts`, plus normal noise with a standard deviation of 10, clipped to 0–100.
+- **Points:** `65 + 12 × ability − 8 × difficulty + 4 × min(previous attempts, 2)`, plus normal noise with a standard deviation of 10, clipped to 0–100. Previous attempts count every earlier attempt at the course, also in earlier years. The bonus stops growing after the second retake, so a student who repeats a course does not keep getting easier exams.
 - **Grades:** 0–54 → 5, 55–64 → 6, 65–74 → 7, 75–84 → 8, 85–94 → 9, 95–100 → 10.
 - **Terms:** winter courses have January and February terms, summer courses have June and July terms, and both have a September retake term.
-- **Attendance and retakes:** students attend the first term with probability 0.95 and later terms with probability 0.85. They stop after a pass.
+- **Attendance and retakes:**
+  - 3% of enrollments never sit the exam at all (no-shows).
+  - The others attend the first term with probability 0.95 and later terms with probability 0.85, and stop after a pass.
+  - After two failed attempts in a year, half of the students give up on the course for that year and skip the September term.
+  - No-shows and students who gave up end the year `failed`, not `withdrawn`: they took the course and did not pass it, and the pass rate must count them.
 - **Failing a course:** the database sets no limit on attempts. An enrollment not passed after the September term is `failed`, and a mandatory course is taken again in the next academic year.
 - **Withdrawals:** 3% of elective enrollments are `withdrawn` before any exam.
 
@@ -85,18 +89,34 @@ At the end of the history, 2% of the students who are still active are marked `s
 
 ### Calibration
 
-The constants were tuned against the default run (seed 42, 15,000 students, 8 years) to hit the target rates. The first version used a base of 62 points and a retake bonus of 3. That produced an 18% dropout rate, a third of it from students stuck past the maximum study length, so the base and the retake bonus were raised.
+The constants were tuned against the default run (seed 42, 15,000 students, 8 years) to hit the target rates.
 
-| Measure | Result |
+**First calibration.** The first version used a base of 62 points and a retake bonus of 3. That produced an 18% dropout rate, a third of it from students stuck past the maximum study length, so the base and the retake bonus were raised.
+
+**Pass-rate realism.** The warehouse's plausibility test then showed that 10.5% of course offerings with at least 30 decided enrollments passed more than 99% of their students. Over three exam terms, almost every student eventually passed an easy course, which real exam results do not show. Each change was measured on its own:
+
+| Change | Offerings above 99% |
 |---|---|
-| Exam attempts passed | 61.9% |
-| Enrollments passed (withdrawals excluded) | 87.5% |
-| Students dropped out | 11.5% |
-| Students transferred | 4.5% |
-| Students graduated (all cohorts) | 53.2% |
-| Students graduated (cohorts with at least two years beyond the nominal length) | 78.1% |
+| None | 10.5% |
+| Bonus capped after the second retake | 10.2% |
+| Plus giving up after two failures (probability 0.5) | 7.3% |
+| Plus giving up (probability 0.8) | 7.2% |
+| Plus 3% no-shows, giving up at 0.5 (chosen) | 0.8% |
+| Plus 5% no-shows, giving up at 0.5 | 0.3% |
 
-The overall graduation rate is lower because the last cohorts are still studying when the history ends.
+Capping the bonus and giving up barely affect easy courses, because hardly anyone fails them twice. What the near-perfect offerings lacked were students who enrol and never sit the exam. A no-show rate of 3% was chosen as the smallest rate that meets the target of under 2%.
+
+| Measure | Before | After |
+|---|---|---|
+| Offerings above 99% pass rate (≥ 30 decided) | 10.5% | 0.8% |
+| Exam attempts passed | 61.9% | 64.6% |
+| Enrollments passed (withdrawals excluded) | 87.5% | 83.7% |
+| Students dropped out | 11.5% | 12.4% |
+| Students transferred | 4.5% | 4.3% |
+| Students graduated (all cohorts) | 53.2% | 50.4% |
+| Students graduated (cohorts with at least two years beyond the nominal length) | 78.1% | 77.0% |
+
+The overall graduation rate is lower than for older cohorts because the last cohorts are still studying when the history ends.
 
 ### Load time
 
@@ -168,7 +188,7 @@ Full mode sets the clock to 1 October after the last academic year of the histor
 | 1 October | Students who completed their program become `graduated`. A new cohort is admitted, sized on the previous three cohorts ±10%, each student with an `enrollment` program period. |
 | First 5 days of a semester | Active students enroll with status `enrolled`, a fifth of them each day (`student_id % 5`). They follow the same course selection rules as the history. Missing course offerings and their three exam terms are created on first enrollment, taught by the course's usual professor 80% of the time. |
 | First 30 days of a semester | Up to 3 elective enrollments a day without attempts become `withdrawn`. |
-| Exam days | Every enrollment still `enrolled` for an offering with an exam term that day, belonging to an active student, may sit the exam. Attendance is the same as in the history. Expected points are the average of the student's and the course's past points, plus the retake bonus. A pass sets the enrollment to `passed`. After the September term, enrollments still `enrolled` become `failed`. |
+| Exam days | Every enrollment still `enrolled` for an offering with an exam term that day, belonging to an active student, may sit the exam. Attendance, no-shows and giving up follow the history's rules. A no-show is decided per enrollment from the seed and the enrollment id, so it stays the same on every exam day. Expected points are the average of the student's and the course's past points, plus the capped retake bonus. A pass sets the enrollment to `passed`. After the September term, enrollments still `enrolled` become `failed`. |
 | Every day | 0–2 email corrections and 0–2 city corrections. With probability 0.3, a grade correction on an attempt from the last year: the points move by up to 3 without crossing the pass mark, and the grade follows the scale. |
 | Every day, rarely | A dropout (probability 0.15), which also withdraws the student's enrollments that have no attempts; a suspension (0.05); a reinstatement of a suspended student (0.05); and a transfer to a sibling program (0.03), which closes the old period on that day and opens the new one. |
 | Every day, rarely | With probability 0.3, one withdrawn enrollment without exam attempts is deleted. These are the only deletes the generator makes, so the ingestion pipeline has a small, well-defined set of deletes to detect. |

@@ -21,9 +21,12 @@ from generator.history import (
     DEGREE_WEIGHTS,
     ELECTIVE_PROBABILITY,
     FIRST_TERM_ATTENDANCE,
+    GIVE_UP_PROBABILITY,
     LATER_TERM_ATTENDANCE,
     MAX_ELECTIVES_PER_SEMESTER,
+    MAX_RETAKES_WITH_BONUS,
     MIN_CAPACITY,
+    NO_SHOW_PROBABILITY,
     PASSING_POINTS,
     POINTS_NOISE,
     PRIMARY_PROFESSOR_SHARE,
@@ -145,6 +148,7 @@ class DayRun:
 
     def __init__(self, connection: Connection, seed: int, day: date) -> None:
         self.connection = connection
+        self.seed = seed
         self.day = day
         label = f"{seed}:daily:{day.isoformat()}"
         self.rng = random.Random(label)
@@ -524,7 +528,17 @@ class DayRun:
         candidates = self.rows(
             """
             SELECT enrollment.enrollment_id, enrollment.student_id,
-                   count(attempt.attempt_id) AS previous_attempts
+                   count(attempt.attempt_id) AS previous_attempts,
+                   (
+                       SELECT count(*)
+                       FROM exam_attempts AS course_attempt
+                       JOIN enrollments AS course_enrollment
+                           ON course_enrollment.enrollment_id = course_attempt.enrollment_id
+                       JOIN course_offerings AS course_offering
+                           ON course_offering.offering_id = course_enrollment.offering_id
+                       WHERE course_enrollment.student_id = enrollment.student_id
+                         AND course_offering.course_id = :course_id
+                   ) AS course_attempts
             FROM enrollments AS enrollment
             JOIN students AS student ON student.student_id = enrollment.student_id
             LEFT JOIN exam_attempts AS attempt ON attempt.enrollment_id = enrollment.enrollment_id
@@ -535,6 +549,7 @@ class DayRun:
             ORDER BY enrollment.enrollment_id
             """,
             offering_id=term.offering_id,
+            course_id=term.course_id,
         )
         if candidates:
             course_average = self.average_points(
@@ -551,12 +566,16 @@ class DayRun:
                 else LATER_TERM_ATTENDANCE
             )
             for candidate in candidates:
+                if self.is_no_show(candidate.enrollment_id):
+                    continue
+                if candidate.previous_attempts >= 2 and self.rng.random() < GIVE_UP_PROBABILITY:
+                    continue
                 if self.rng.random() >= attendance:
                     continue
                 student_average = student_averages.get(candidate.student_id, DEFAULT_AVERAGE_POINTS)
-                expected = (
-                    student_average + course_average
-                ) / 2 + RETAKE_BONUS * candidate.previous_attempts
+                expected = (student_average + course_average) / 2 + RETAKE_BONUS * min(
+                    candidate.course_attempts, MAX_RETAKES_WITH_BONUS
+                )
                 points = max(0, min(100, round(self.rng.gauss(expected, POINTS_NOISE))))
                 self.write(
                     "exam_attempts",
@@ -589,6 +608,10 @@ class DayRun:
                 """,
                 offering_id=term.offering_id,
             )
+
+    def is_no_show(self, enrollment_id: int) -> bool:
+        """Whether the student never sits this enrollment's exams; the same on every exam day."""
+        return random.Random(f"{self.seed}:no-show:{enrollment_id}").random() < NO_SHOW_PROBABILITY
 
     def average_points(self, condition: str, key: object, by_student: bool = False) -> dict:
         group = "enrollment.student_id" if by_student else "offering.course_id"

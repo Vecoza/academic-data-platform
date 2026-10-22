@@ -45,6 +45,9 @@ BASE_POINTS = 65
 ABILITY_WEIGHT = 12
 DIFFICULTY_WEIGHT = 8
 RETAKE_BONUS = 4
+MAX_RETAKES_WITH_BONUS = 2
+GIVE_UP_PROBABILITY = 0.5
+NO_SHOW_PROBABILITY = 0.03
 POINTS_NOISE = 10
 PASSING_POINTS = 55
 GRADE_THRESHOLDS = ((95, 10), (85, 9), (75, 8), (65, 7), (55, 6))
@@ -149,6 +152,7 @@ class StudentState:
     transferred: bool = False
     passed: dict[int, date] = field(default_factory=dict)
     failed_electives: set[int] = field(default_factory=set)
+    course_attempts: dict[int, int] = field(default_factory=dict)
     ects_this_year: int = 0
 
 
@@ -372,14 +376,24 @@ class Simulation:
         batch: ActivityBatch,
         september: ActivityBatch,
     ) -> str:
-        """Attempt the exam term by term until passed; returns the final enrollment status."""
-        attempts = 0
+        """Attempt the exam term by term until passed; returns the final enrollment status.
+
+        Some students never sit the exam at all, and after two failed attempts in the same year a
+        student may give up on the course for that year. Both enrollments end failed."""
+        if self.rng.random() < NO_SHOW_PROBABILITY:
+            return "failed"
+        failed_attempts = 0
         for position, term in enumerate(terms):
+            if failed_attempts >= 2 and self.rng.random() < GIVE_UP_PROBABILITY:
+                break
             attendance = FIRST_TERM_ATTENDANCE if position == 0 else LATER_TERM_ATTENDANCE
             if self.rng.random() >= attendance:
                 continue
-            points = self.exam_points(state.ability, self.difficulty[course.course_id], attempts)
-            attempts += 1
+            previous_attempts = state.course_attempts.get(course.course_id, 0)
+            points = self.exam_points(
+                state.ability, self.difficulty[course.course_id], previous_attempts
+            )
+            state.course_attempts[course.course_id] = previous_attempts + 1
             self.attempt_count += 1
             target = september if term.term_type == "september" else batch
             target.exam_attempts.append(
@@ -396,6 +410,7 @@ class Simulation:
                 state.passed[course.course_id] = term.exam_date
                 state.ects_this_year += course.ects
                 return "passed"
+            failed_attempts += 1
         return "failed"
 
     def exam_points(self, ability: float, difficulty: float, previous_attempts: int) -> int:
@@ -403,7 +418,7 @@ class Simulation:
             BASE_POINTS
             + ABILITY_WEIGHT * ability
             - DIFFICULTY_WEIGHT * difficulty
-            + RETAKE_BONUS * previous_attempts
+            + RETAKE_BONUS * min(previous_attempts, MAX_RETAKES_WITH_BONUS)
         )
         return max(0, min(100, round(self.rng.gauss(expected, POINTS_NOISE))))
 
