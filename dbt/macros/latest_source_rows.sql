@@ -1,15 +1,12 @@
-{#- The newest version of every key in a raw table, leaving out keys deleted in the source. -#}
+{#- The newest version of every key in a raw table, leaving out keys deleted in the source.
+    DISTINCT ON lets the planner estimate the result from the key's statistics; a filter on
+    ROW_NUMBER() is estimated at 0.5% of the rows, which led to nested-loop plans downstream. -#}
 {% macro latest_source_rows(table_name, key) %}
     SELECT *
     FROM (
-        SELECT
-            *,
-            ROW_NUMBER() OVER (
-                PARTITION BY {{ key }}
-                ORDER BY _source_updated_at DESC, _raw_id DESC
-            ) AS version_rank
+        SELECT DISTINCT ON ({{ key }}) *
         FROM {{ source('raw', table_name) }}
-    ) AS versions
-    WHERE version_rank = 1
-      AND NOT _is_deleted
+        ORDER BY {{ key }}, _source_updated_at DESC, _raw_id DESC
+    ) AS latest_versions
+    WHERE NOT _is_deleted
 {% endmacro %}
