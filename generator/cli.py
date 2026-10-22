@@ -8,7 +8,8 @@ import time
 from collections.abc import Sequence
 
 from academic_platform.db import get_engine
-from generator.loader import load_reference_data
+from generator.history import simulate_history
+from generator.loader import load_generated_data
 from generator.reference import generate_reference_data
 
 logger = logging.getLogger(__name__)
@@ -48,12 +49,21 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 def main(argv: Sequence[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
     args = parse_args(argv)
-    logger.info("Generating %s mode data with seed %s", args.mode, args.seed)
-    logger.info("Student history is not generated yet; --students %s is ignored", args.students)
+    logger.info(
+        "Generating %s mode data: seed %s, %s students, %s years",
+        args.mode,
+        args.seed,
+        args.students,
+        args.years,
+    )
 
-    data = generate_reference_data(seed=args.seed, years=args.years)
+    started = time.perf_counter()
+    reference = generate_reference_data(seed=args.seed, years=args.years)
+    history = simulate_history(seed=args.seed, student_count=args.students, reference=reference)
+    logger.info("Simulated history in %.2f s", time.perf_counter() - started)
+
     started = time.perf_counter()
     with get_engine().begin() as connection:
-        counts = load_reference_data(connection, data)
+        counts = load_generated_data(connection, reference, history)
     logger.info("Loaded %d rows in %.2f s", sum(counts.values()), time.perf_counter() - started)
     return 0
