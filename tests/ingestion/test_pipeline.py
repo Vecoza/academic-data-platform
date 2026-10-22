@@ -265,3 +265,36 @@ def test_meta_tables_can_be_created_repeatedly(warehouse: DatabaseSettings) -> N
         )
         == 2
     )
+
+
+def test_student_exit_dates_reach_a_raw_table_created_before_they_existed(
+    loaded: Engine, database_settings: DatabaseSettings, warehouse: DatabaseSettings
+) -> None:
+    with psycopg.connect(warehouse.dsn) as connection:
+        connection.execute(
+            "ALTER TABLE raw.students DROP COLUMN graduated_at, DROP COLUMN dropped_out_at"
+        )
+    graduate_id = source_value(
+        loaded, "SELECT min(student_id) FROM students WHERE status = 'graduated'"
+    )
+    with loaded.begin() as connection:
+        connection.execute(
+            text("UPDATE students SET city = 'Zadar' WHERE student_id = :id"), {"id": graduate_id}
+        )
+
+    result = ingest(
+        database_settings, warehouse, "incremental", tables=["students"], overlap=NO_OVERLAP
+    )["students"]
+
+    assert result.status == "succeeded"
+    assert warehouse_value(
+        warehouse,
+        """
+        SELECT graduated_at IS NOT NULL AND dropped_out_at IS NULL
+        FROM raw.students
+        WHERE student_id = %s
+        ORDER BY _source_updated_at DESC
+        LIMIT 1
+        """,
+        graduate_id,
+    )
