@@ -59,3 +59,11 @@ def test_downgrade_to_base_and_upgrade_again_round_trips(
 
         command.upgrade(migration_config, "head")
         assert public_tables(db_engine) == EXPECTED_TABLES
+
+
+def test_simulation_clock_lives_outside_the_public_schema(db_engine: Engine) -> None:
+    with db_engine.connect() as connection:
+        schemas = connection.execute(
+            text("SELECT table_schema FROM information_schema.tables WHERE table_name = 'clock'")
+        ).scalars()
+        assert list(schemas) == ["sim"]
