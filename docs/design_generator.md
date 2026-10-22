@@ -110,4 +110,72 @@ Default run (15,000 students, 8 years) on a laptop with PostgreSQL in Docker:
 | Exam attempts | 570,000 | 88 s |
 | **Total load** | 1,019,000 | 168 s |
 
-The full run stays under the five-minute budget with all triggers enabled, so the trigger queries and indexes were left unchanged. Almost all of the time goes to the two trigger-checked tables, at about 0.2 ms per row. Each enrollment runs the prerequisite query, and each attempt locks its enrollment row and checks for an earlier pass. Both queries are served by existing indexes: the unique keys on `enrollments (student_id, offering_id)` and `exam_attempts (enrollment_id, exam_term_id)`.
+Almost all of the time goes to the two trigger-checked tables. Each enrollment runs the prerequisite query, and each attempt locks its enrollment row and checks for an earlier pass. Both queries are served by existing indexes: the unique keys on `enrollments (student_id, offering_id)` and `exam_attempts (enrollment_id, exam_term_id)`.
+
+### Load time investigation
+
+The same full load took 168 s in one run and 321–324 s in later runs on the same laptop, which is over the five-minute budget. The investigation below found where the time goes and showed that none of the obvious tunings help. None of them was kept.
+
+**Where the time goes.** These measurements used 5,000 students (347,000 rows), each load inside a transaction that was rolled back:
+
+| Variant | Time |
+|---|---|
+| Everything enabled | 79–170 s across runs |
+| Business-rule triggers disabled, foreign keys still checked | 155 s |
+| All triggers disabled, foreign-key checks included (`session_replication_role = replica`) | 3.1 s |
+
+About 96% of the load time is spent in per-row checks: the foreign-key checks PostgreSQL runs for every inserted row, plus the two business-rule triggers. `auto_explain` showed no slow statement among them. Each check is an index lookup costing roughly 0.1–0.3 ms when PostgreSQL runs inside Docker Desktop on this machine, and there are several per row. Identical runs differed by up to ±30%, so only large effects can be measured on this setup.
+
+**What was tried and not kept:**
+- **`ANALYZE` between batches,** in case the cached plans of the trigger queries had been made while the tables were empty. The plans were already index scans, and the extra `ANALYZE` statements made the load slower (282 s against 170 s).
+- **An early exit in the prerequisite trigger** for courses without prerequisites. Alternating runs showed no difference: 47.8 and 60.8 s with it, against 41.8 and 62.8 s without.
+- **Larger server settings** (`shared_buffers = 512MB`, `max_wal_size = 4GB`). The results (98 and 139 s) stayed within the noise of the default settings.
+
+**What would help.** Each of these trades away something that was chosen on purpose, so none is applied:
+- **Statement-level triggers with transition tables:** one set-based check per `COPY` batch instead of one query per row. This changes the semantics and the error reporting of the business rules.
+- **Disabling triggers and foreign keys during the bulk load:** it contradicts the decision that a successful load proves the data obeys every rule.
+- **A faster database host:** most of the per-row cost comes from running PostgreSQL in a virtual machine. CI's PostgreSQL runs directly on a Linux runner and is not affected the same way.
+
+## Daily mode
+
+Daily mode turns the finished history into a live system. Each run simulates one or more days after the history and writes them to the operational database with ordinary `INSERT`, `UPDATE` and `DELETE` statements, the same way an application would. This gives the ingestion pipeline real incremental work: new rows, changed rows and the occasional deleted row.
+
+### Simulation clock
+
+The clock is a single row in `sim.clock`, in a separate `sim` schema so that ingestion, which reads `public`, never sees it.
+
+| Column | Meaning |
+|---|---|
+| `simulated_date` | The next day to simulate |
+| `seed` | The seed of the full load; daily runs reuse it |
+| `last_run_at` | Wall-clock time of the last daily run, `NULL` after a full load |
+
+The column is called `simulated_date` rather than `current_date`, because `CURRENT_DATE` is a reserved SQL function and the name would have to be quoted everywhere.
+
+Full mode sets the clock to 1 October after the last academic year of the history, the first day of the next academic year.
+
+**One transaction per day.** A daily run reads the clock with `SELECT ... FOR UPDATE`, writes that day's activity, moves the clock one day forward and commits. If a day fails, its changes and the clock move are rolled back together, and the next run retries the same day.
+
+**Choosing which days to run.**
+- `--days N` simulates the next N days.
+- `--date D` simulates every day up to and including D.
+- If D has already been simulated, the run changes nothing and logs that the date was already done. This makes daily mode safe to repeat, for example when a scheduler retries a job.
+
+**Determinism.** All random choices of a day come from a random generator and a Faker instance seeded with the full-load seed and the date (`"42:daily:2026-10-01"`). Every query that feeds a random choice has an `ORDER BY`. The same history and the same sequence of days therefore produce the same rows, including identity values, in any database.
+
+### What happens on a day
+
+| When | Activity |
+|---|---|
+| 1 October, 1 March | The winter or summer semester row is inserted. |
+| 1 October | Students who completed their program become `graduated`. A new cohort is admitted, sized on the previous three cohorts ±10%, each student with an `enrollment` program period. |
+| First 5 days of a semester | Active students enroll with status `enrolled`, a fifth of them each day (`student_id % 5`). They follow the same course selection rules as the history. Missing course offerings and their three exam terms are created on first enrollment, taught by the course's usual professor 80% of the time. |
+| First 30 days of a semester | Up to 3 elective enrollments a day without attempts become `withdrawn`. |
+| Exam days | Every enrollment still `enrolled` for an offering with an exam term that day, belonging to an active student, may sit the exam. Attendance is the same as in the history. Expected points are the average of the student's and the course's past points, plus the retake bonus. A pass sets the enrollment to `passed`. After the September term, enrollments still `enrolled` become `failed`. |
+| Every day | 0–2 email corrections and 0–2 city corrections. With probability 0.3, a grade correction on an attempt from the last year: the points move by up to 3 without crossing the pass mark, and the grade follows the scale. |
+| Every day, rarely | A dropout (probability 0.15), which also withdraws the student's enrollments that have no attempts; a suspension (0.05); a reinstatement of a suspended student (0.05); and a transfer to a sibling program (0.03), which closes the old period on that day and opens the new one. |
+| Every day, rarely | With probability 0.3, one withdrawn enrollment without exam attempts is deleted. These are the only deletes the generator makes, so the ingestion pipeline has a small, well-defined set of deletes to detect. |
+
+Daily mode never sets `updated_at` itself; the `set_updated_at()` triggers do. Because each day commits separately, every updated row gets that day's transaction time.
+
+The hidden ability and difficulty values of the history are not stored in the database. Daily mode estimates them from the stored results instead: the student's and the course's average points so far.
