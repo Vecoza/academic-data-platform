@@ -23,7 +23,7 @@ class DatabaseSettings:
     def from_env(cls) -> DatabaseSettings:
         return cls(
             user=os.getenv("POSTGRES_USER", "academic"),
-            password=os.getenv("POSTGRES_PASSWORD", "academic"),
+            password=os.getenv("POSTGRES_PASSWORD", "adp_local_pw_2026"),
             host=os.getenv("POSTGRES_HOST", "localhost"),
             port=int(os.getenv("POSTGRES_PORT", "5432")),
             name=os.getenv("POSTGRES_DB", "university"),
