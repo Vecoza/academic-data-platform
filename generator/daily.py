@@ -224,10 +224,15 @@ class DayRun:
             "update",
             """
             WITH passed AS (
-                SELECT DISTINCT enrollment.student_id, offering.course_id
+                SELECT
+                    enrollment.student_id,
+                    offering.course_id,
+                    MAX(attempt.attempted_at) AS passed_at
                 FROM enrollments AS enrollment
                 JOIN course_offerings AS offering ON offering.offering_id = enrollment.offering_id
-                WHERE enrollment.status = 'passed'
+                JOIN exam_attempts AS attempt ON attempt.enrollment_id = enrollment.enrollment_id
+                WHERE enrollment.status = 'passed' AND attempt.grade >= 6
+                GROUP BY enrollment.student_id, offering.course_id
             ),
             progress AS (
                 SELECT
@@ -236,7 +241,8 @@ class DayRun:
                     bool_and(course.is_mandatory IS FALSE OR passed.course_id IS NOT NULL)
                         AS all_mandatory_passed,
                     coalesce(sum(course.ects) FILTER (WHERE passed.course_id IS NOT NULL), 0)
-                        AS earned_ects
+                        AS earned_ects,
+                    max(passed.passed_at) AS last_passed_at
                 FROM students AS student
                 JOIN student_programs AS period
                     ON period.student_id = student.student_id AND period.valid_to IS NULL
@@ -249,7 +255,7 @@ class DayRun:
                 GROUP BY student.student_id, program.total_ects
             )
             UPDATE students
-            SET status = 'graduated'
+            SET status = 'graduated', graduated_at = progress.last_passed_at
             FROM progress
             WHERE students.student_id = progress.student_id
               AND progress.all_mandatory_passed
@@ -724,7 +730,16 @@ class DayRun:
         if self.rng.random() < DROPOUT_PROBABILITY:
             student_id = self.random_student("active")
             if student_id is not None:
-                self.set_status(student_id, "dropped_out")
+                self.write(
+                    "students",
+                    "update",
+                    """
+                    UPDATE students SET status = 'dropped_out', dropped_out_at = :dropped_out_at
+                    WHERE student_id = :id
+                    """,
+                    dropped_out_at=datetime.combine(self.day, time(12, 0), tzinfo=UTC),
+                    id=student_id,
+                )
                 self.write(
                     "enrollments",
                     "update",

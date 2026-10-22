@@ -84,6 +84,8 @@ class Student:
     city: str
     enrollment_year: int
     status: str
+    graduated_at: datetime | None = None
+    dropped_out_at: datetime | None = None
 
 
 @dataclass(frozen=True, slots=True)

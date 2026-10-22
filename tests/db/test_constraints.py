@@ -1,5 +1,5 @@
 from collections.abc import Callable
-from datetime import date
+from datetime import UTC, date, datetime
 
 import pytest
 from sqlalchemy import Connection, text
@@ -28,6 +28,12 @@ CHECK_VIOLATIONS = [
     ),
     ("student", {"gender": "unknown"}, "ck_students_gender"),
     ("student", {"status": "expelled"}, "ck_students_status"),
+    ("student", {"status": "graduated"}, "ck_students_exit_date_matches_status"),
+    (
+        "student",
+        {"dropped_out_at": datetime(2024, 9, 30, tzinfo=UTC)},
+        "ck_students_exit_date_matches_status",
+    ),
     (
         "student_program",
         {"valid_from": date(2024, 10, 1), "valid_to": date(2024, 9, 30)},

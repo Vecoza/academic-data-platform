@@ -154,6 +154,8 @@ class StudentState:
     failed_electives: set[int] = field(default_factory=set)
     course_attempts: dict[int, int] = field(default_factory=dict)
     ects_this_year: int = 0
+    graduated_at: datetime | None = None
+    dropped_out_at: datetime | None = None
 
 
 @dataclass
@@ -239,7 +241,12 @@ class Simulation:
         self.suspend_some_active_students()
         return History(
             students=[
-                replace(student, status=state.status)
+                replace(
+                    student,
+                    status=state.status,
+                    graduated_at=state.graduated_at,
+                    dropped_out_at=state.dropped_out_at,
+                )
                 for student, state in zip(self.students, self.states, strict=True)
             ],
             student_programs=self.student_programs,
@@ -446,19 +453,33 @@ class Simulation:
         )
 
     def close_year(self, year: int) -> None:
-        """Graduation, dropout and transfer decisions after the September term."""
+        """Graduation, dropout and transfer decisions after the September term.
+
+        A graduation is dated by the last passed exam of the program, a dropout by the end of
+        the academic year in which the student left."""
+        end_of_year = datetime.combine(date(year + 1, 9, 30), time(12, 0), tzinfo=UTC)
         for state in self.active_states():
             study_year = year - state.program_start_year + 1
             nominal_years = state.program.duration_semesters // 2
             if self.has_completed_program(state):
                 state.status = "graduated"
-            elif study_year >= nominal_years + MAX_EXTRA_STUDY_YEARS:
+                state.graduated_at = self.last_passed_exam(state)
+            elif study_year >= nominal_years + MAX_EXTRA_STUDY_YEARS or (
+                self.rng.random() < self.dropout_probability(state.ects_this_year)
+            ):
                 state.status = "dropped_out"
-            elif self.rng.random() < self.dropout_probability(state.ects_this_year):
-                state.status = "dropped_out"
+                state.dropped_out_at = end_of_year
             elif year < self.academic_years[-1] and self.wants_transfer(state, study_year):
                 self.transfer(state, year)
             state.ects_this_year = 0
+
+    def last_passed_exam(self, state: StudentState) -> datetime:
+        last_pass = max(
+            state.passed[course.course_id]
+            for course in self.courses_by_program[state.program.program_id]
+            if course.course_id in state.passed
+        )
+        return datetime.combine(last_pass, time(9, 0), tzinfo=UTC)
 
     def has_completed_program(self, state: StudentState) -> bool:
         courses = self.courses_by_program[state.program.program_id]

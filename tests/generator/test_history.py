@@ -173,3 +173,30 @@ def test_every_graduate_completed_the_program(reference: ReferenceData, history:
         passed = passed_courses[student.student_id]
         assert all(c.course_id in passed for c in program_courses if c.is_mandatory)
         assert sum(c.ects for c in program_courses if c.course_id in passed) >= program.total_ects
+
+
+def test_exit_dates_are_set_exactly_for_graduates_and_dropouts(history: History) -> None:
+    for student in history.students:
+        assert (student.graduated_at is not None) == (student.status == "graduated")
+        assert (student.dropped_out_at is not None) == (student.status == "dropped_out")
+
+
+def test_graduation_is_dated_by_the_last_passed_exam_of_the_program(
+    reference: ReferenceData, history: History
+) -> None:
+    course_program = {course.course_id: course.program_id for course in reference.courses}
+    offering_course = {o.offering_id: o.course_id for o in history.course_offerings}
+    final_program = {p.student_id: p.program_id for p in history.student_programs}
+    enrollments = {e.enrollment_id: e for e in all_enrollments(history)}
+    last_pass: dict[int, datetime] = {}
+    for attempt in all_attempts(history):
+        enrollment = enrollments[attempt.enrollment_id]
+        course_id = offering_course[enrollment.offering_id]
+        if attempt.grade >= 6 and course_program[course_id] == final_program[enrollment.student_id]:
+            current = last_pass.get(enrollment.student_id)
+            last_pass[enrollment.student_id] = max(filter(None, (current, attempt.attempted_at)))
+
+    graduates = [student for student in history.students if student.status == "graduated"]
+    assert graduates
+    for student in graduates:
+        assert student.graduated_at == last_pass[student.student_id]
