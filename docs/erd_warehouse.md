@@ -29,6 +29,9 @@ erDiagram
         text email "Type 1"
         text city "Type 1"
         text student_status "Type 1"
+        timestamptz graduated_at "Type 1"
+        timestamptz dropped_out_at "Type 1"
+        date first_enrolled_on
         integer cohort_year
         bigint program_key FK "Type 2"
         date valid_from "inclusive"
@@ -111,6 +114,19 @@ erDiagram
         boolean is_passing
     }
 ```
+
+## Reporting marts
+
+The marts sit on top of the star schema in the same `marts` schema:
+
+| Mart | Grain | Built from |
+|---|---|---|
+| `mart_course_pass_rates` | course, semester and professor | `fact_enrollments`, `fact_exam_attempts`, dimensions |
+| `mart_course_pass_rates_by_year` | course and academic year | `fact_enrollments`, `fact_exam_attempts`, `dim_course`, `dim_semester` |
+| `mart_student_gpa_trend` | student and semester | `int_student_semester_progress`, `dim_student`, `dim_semester` |
+| `mart_student_population_by_year` | academic year | `dim_student`, `dim_semester` |
+| `mart_time_to_graduation` | program and cohort | `dim_student`, `dim_program` |
+| `mart_dropout_risk` | active student | `int_student_semester_progress`, `dim_student` |
 
 ## Layers
 

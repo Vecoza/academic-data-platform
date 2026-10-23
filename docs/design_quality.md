@@ -62,7 +62,7 @@ All dbt tests run in `dbt build`. A failing test stops the models that depend on
 | Staging | 71 | Unique and not-null keys; unique business keys (index number, emails, course code, semester, offering, enrollment, attempt per term); every foreign key, including attempt → enrollment; grade 5–10, points 0–100, ECTS 1–15; accepted status values |
 | Intermediate | 8 | Grain keys of enrollment outcomes and semester progress |
 | Core | 61 | Keys and relationships of both facts to every dimension; grade and point ranges in both facts; the student version of each fact row valid on its business date; no attempt after a pass; one current, non-overlapping version per student |
-| Reporting | 19 | Grain keys of the marts; pass rate 0–1; GPA 6–10; cumulative ECTS never decreases; cohort outcomes add up to the cohort size |
+| Reporting | 30 | Grain keys of the marts; pass rates 0–1; GPA 6–10; cumulative ECTS never decreases; cohort outcomes add up to the cohort size; yearly student counts balance |
 
 **Project tests.** No external dbt package is used. The tests that dbt does not provide are small tests in the project:
 
@@ -74,6 +74,7 @@ All dbt tests run in `dbt build`. A failing test stops the models that depend on
 | `assert_no_attempt_after_a_pass` | singular | At most one passing attempt per enrollment, and none after it |
 | `assert_dim_student_has_valid_periods` | singular | Exactly one current version per student, no overlaps |
 | `assert_cumulative_ects_never_decreases` | singular | Running ECTS per student is monotonic |
+| `assert_student_population_balances` | singular | Students at each year end equal the previous year end, plus admissions, minus graduations and dropouts |
 | `assert_cohort_totals_add_up` | singular | Graduated + dropped out + still studying = cohort size, and cohort sizes match a direct count of `dim_student` |
 | `assert_course_pass_rates_are_plausible` | singular, warning | Pass rate of an offering with ≥ 30 decided enrollments within 20–99% |
 | `assert_student_ages_are_plausible` | singular, warning | Age at the start of studies between 17 and 45 |
@@ -83,7 +84,9 @@ All dbt tests run in `dbt build`. A failing test stops the models that depend on
 - **Error.** Integrity rules are errors: if a key is duplicated or a reference is broken, the numbers built on top of it are wrong, and the build must stop.
 - **Warning.** Business plausibility checks are warnings: an unusual value may be real, and someone should look at it, but it does not make the model wrong.
 
-On the default history, the pass-rate warning flags 234 of 2,227 offerings with at least 30 decided enrollments, all of them above 99%. With three exam terms and an increasing retake bonus, the generator lets almost every student pass an easy course eventually. That is a finding about the realism of the synthetic data, not an error in the pipeline, which is exactly the kind of signal a warning is meant to raise.
+**The warning found a flaw in the generator.** On the first default history, the pass-rate warning flagged 234 of 2,227 offerings with at least 30 decided enrollments, all of them above 99%. With three exam terms and a growing retake bonus, the generator let almost every student pass an easy course eventually.
+
+The generator was changed: students who never sit the exam, students who give up after two failures, and a capped retake bonus. The warning now flags 18 offerings (0.8%), which is the occasional genuinely easy course. The change and its measurements are in [design_generator.md](design_generator.md).
 
 ## Deliberate corruption
 

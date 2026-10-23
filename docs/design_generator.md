@@ -80,9 +80,9 @@ Offerings and their exam terms are created when the first student enrolls. 80% o
 - **Withdrawals:** 3% of elective enrollments are `withdrawn` before any exam.
 
 **Outcomes after the September term,** checked in this order:
-1. **Graduation:** every mandatory course passed and the program's ECTS reached.
+1. **Graduation:** every mandatory course passed and the program's ECTS reached. `graduated_at` is the time of the last passed exam of the program.
 2. **Maximum study length:** a student still enrolled three years after the nominal length is `dropped_out`.
-3. **Dropout:** the probability is `0.01 + 0.20 × (1 − ECTS this year / 60)²`, so a year with no ECTS gives 21% and a full year 1%.
+3. **Dropout:** `dropped_out_at` is noon on 30 September, the end of the academic year in which the student left; this also applies to rule 2. The probability is `0.01 + 0.20 × (1 − ECTS this year / 60)²`, so a year with no ECTS gives 21% and a full year 1%.
 4. **Transfer:** students in a program that has a sibling program (same faculty and degree level) transfer with probability 6% after their first year and 4% after their second, at most once. The old period is closed on 1 October, the new one opens the same day, and the student starts the new program from its first semester. Transfers are not scheduled after the last simulated year.
 
 At the end of the history, 2% of the students who are still active are marked `suspended`.
@@ -185,12 +185,12 @@ Full mode sets the clock to 1 October after the last academic year of the histor
 | When | Activity |
 |---|---|
 | 1 October, 1 March | The winter or summer semester row is inserted. |
-| 1 October | Students who completed their program become `graduated`. A new cohort is admitted, sized on the previous three cohorts ±10%, each student with an `enrollment` program period. |
+| 1 October | Students who completed their program become `graduated`, dated by their last passed exam. A new cohort is admitted, sized on the previous three cohorts ±10%, each student with an `enrollment` program period. |
 | First 5 days of a semester | Active students enroll with status `enrolled`, a fifth of them each day (`student_id % 5`). They follow the same course selection rules as the history. Missing course offerings and their three exam terms are created on first enrollment, taught by the course's usual professor 80% of the time. |
 | First 30 days of a semester | Up to 3 elective enrollments a day without attempts become `withdrawn`. |
 | Exam days | Every enrollment still `enrolled` for an offering with an exam term that day, belonging to an active student, may sit the exam. Attendance, no-shows and giving up follow the history's rules. A no-show is decided per enrollment from the seed and the enrollment id, so it stays the same on every exam day. Expected points are the average of the student's and the course's past points, plus the capped retake bonus. A pass sets the enrollment to `passed`. After the September term, enrollments still `enrolled` become `failed`. |
 | Every day | 0–2 email corrections and 0–2 city corrections. With probability 0.3, a grade correction on an attempt from the last year: the points move by up to 3 without crossing the pass mark, and the grade follows the scale. |
-| Every day, rarely | A dropout (probability 0.15), which also withdraws the student's enrollments that have no attempts; a suspension (0.05); a reinstatement of a suspended student (0.05); and a transfer to a sibling program (0.03), which closes the old period on that day and opens the new one. |
+| Every day, rarely | A dropout (probability 0.15), dated that day, which also withdraws the student's enrollments that have no attempts; a suspension (0.05); a reinstatement of a suspended student (0.05); and a transfer to a sibling program (0.03), which closes the old period on that day and opens the new one. |
 | Every day, rarely | With probability 0.3, one withdrawn enrollment without exam attempts is deleted. These are the only deletes the generator makes, so the ingestion pipeline has a small, well-defined set of deletes to detect. |
 
 Daily mode never sets `updated_at` itself; the `set_updated_at()` triggers do. Because each day commits separately, every updated row gets that day's transaction time.

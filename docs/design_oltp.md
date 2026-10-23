@@ -138,7 +138,7 @@ A `CHECK` constraint can only see the row being written. Rules that need other r
 
 | Rule | Mechanism |
 |---|---|
-| Grade 5–10, points 0–100, ECTS 1–15, `end_date > start_date`, `valid_to > valid_from`, a course is not its own prerequisite, positive counts (program length and ECTS, semester number, offering capacity), enumerations | `CHECK` |
+| Grade 5–10, points 0–100, ECTS 1–15, `end_date > start_date`, `valid_to > valid_from`, a course is not its own prerequisite, positive counts (program length and ECTS, semester number, offering capacity), enumerations, exit times matching the status | `CHECK` |
 | Business keys (see the tables above), one current program per student | `UNIQUE`, partial unique index |
 | Non-overlapping program periods | `EXCLUDE` constraint |
 | `updated_at` maintained on every update | `BEFORE UPDATE` trigger `set_updated_at()` on every table |
@@ -176,9 +176,21 @@ A `CHECK` constraint can only see the row being written. Rules that need other r
 
 PostgreSQL indexes primary keys and unique constraints automatically, but not foreign key columns. Every foreign key column gets an index, unless it is the leading column of a unique constraint that already covers it. This keeps joins fast and keeps `RESTRICT` checks on parent deletes from scanning child tables.
 
+### When students leave
+
+`students.graduated_at` and `students.dropped_out_at` record when a student left. They were added by migration 007, after the history had been designed.
+
+One constraint ties them to the status: `ck_students_exit_date_matches_status`. A student has a graduation time exactly when the status is `graduated`, and a dropout time exactly when it is `dropped_out`. At most one is ever set, and a status cannot change without its date.
+
+**Backfill.** Existing databases already held graduates and dropouts without dates when the columns were added. Migration 007 therefore fills them in before adding the constraint:
+- **Graduates:** the time of their last passed exam in their current program.
+- **Dropouts:** the time of their last enrollment or exam.
+
+The backfill updates fire the `updated_at` trigger, so incremental ingestion picks up the new values like any other change.
+
 ### Nullability and defaults
 
-- **`NOT NULL` everywhere but one column.** Every column is `NOT NULL` except `student_programs.valid_to`, where `NULL` means the period is still open. Optional data was avoided rather than modelled with nulls.
+- **`NOT NULL` almost everywhere.** Every column is `NOT NULL` except `student_programs.valid_to`, where `NULL` means the period is still open, and the two exit times of a student, which are empty while the student studies. Optional data was avoided rather than modelled with nulls.
 - **Defaults describe a new record.** A new student is `active` and a new enrollment is `enrolled`. `enrolled_at` and `attempted_at` default to the time of insert, and courses are mandatory unless stated otherwise.
 
 ### Naming conventions

@@ -8,14 +8,14 @@ Apache Airflow 3.3 runs the pipeline on a schedule: simulate the next day of uni
 |---|---|
 | `airflow-database` | One-off: creates the `airflow` metadata database on the existing PostgreSQL server if it is missing |
 | `airflow-init` | One-off: migrates the metadata database and creates the `academic_pipeline` pool |
+| `platform-init` | One-off: applies the project's migrations and, on an empty operational database, generates a history, ingests it and builds the warehouse, so the first DAG run has data to work on |
 | `airflow-apiserver` | REST API, web UI and the execution API that running tasks report to (port 8080) |
 | `airflow-scheduler` | Schedules DAG runs and, with the LocalExecutor, runs the tasks itself |
 | `airflow-dag-processor` | Parses the DAG files in `orchestration/dags` |
 
-All Airflow services sit behind the Compose profile `airflow`:
-- `make up` still starts only PostgreSQL.
-- `make airflow-up` builds the image and starts Airflow, waiting until every service is healthy.
-- `make airflow-down` removes the Airflow containers and leaves PostgreSQL running.
+`docker compose up` starts Airflow together with the database and the dashboard; the scheduler waits for `platform-init` to finish. The services and their start order are listed in [architecture.md](architecture.md).
+- **For local development,** `make up` starts only PostgreSQL.
+- **For Airflow alone,** `make airflow-up` and `make airflow-down` start and remove only the Airflow containers.
 
 **Metadata database.** Airflow's metadata lives in its own `airflow` database on the same server, separate from `university` and `warehouse`. An init script under `docker/init` would only run on an empty data volume, so a one-off container creates the database idempotently instead.
 
@@ -95,6 +95,15 @@ Between the two DAGs, every task uses the `academic_pipeline` pool with a single
 **Repeating a backfill is safe.** A target date that has already been simulated makes the generator log "already simulated" and do nothing, and the rest of the chain finds nothing new.
 
 Airflow's own `airflow backfill` command is not used. It would create one run per scheduled interval and replay `academic_daily` for past logical dates, but the simulation clock, not the logical date, decides which day is simulated next. A single run up to a target date matches how the clock works.
+
+## Regenerating the history
+
+**Pause first.** Pause `academic_daily` (or stop the scheduler) before a full regeneration with `generator --mode full`. Once, a scheduled run started while the full load was running:
+- Its first attempt failed and its retry simulated a day on the old data.
+- The full load then truncated every table and reset the clock, so the data ended up consistent.
+- But the run had also ingested into a raw layer that no longer matched the source.
+
+A regenerated history is a new source system: its ids belong to different students. So after regenerating, reset the warehouse's `raw` and `meta` schemas and run a full ingestion and a full dbt build.
 
 ## Testing
 

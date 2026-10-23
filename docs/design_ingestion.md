@@ -94,6 +94,8 @@ Before each load, the source columns are compared with the raw table:
 | Dropped column | Kept in raw; new versions have `NULL`. |
 | Changed type | The batch fails with an error naming the column and both types. A type change needs a decision, for example to cast, to keep both columns or to rebuild raw, so it is not applied silently. |
 
+**A real case.** Migration 007 added `graduated_at` and `dropped_out_at` to `students` after raw had been loaded for weeks. The next incremental run added both columns to `raw.students`, with no change to the ingestion code. It then loaded the 9,421 student rows whose `updated_at` the migration's backfill had moved. A test reproduces this: it removes the columns from raw, changes a graduate in the source and checks that the graduation time arrives.
+
 ## Logging
 
 Each table produces one structured log line:

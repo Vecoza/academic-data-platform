@@ -6,9 +6,9 @@ A Streamlit app in `dashboard/` presents the reporting marts to faculty and admi
 
 | Page | Content | Marts |
 |---|---|---|
-| Overview | Active students, share graduated and dropped out, average GPA; students enrolled, pass rate and GPA per academic year; outcomes per cohort | `dim_student`, `mart_student_gpa_trend`, `mart_course_pass_rates`, `mart_time_to_graduation` |
-| Course pass rates | Filters for faculty, program, academic year and term; the ten hardest and easiest courses; pass rate per professor | `mart_course_pass_rates` |
-| Student progress | One student's cumulative GPA against the average of their program and cohort; ECTS per semester; semester table | `mart_student_gpa_trend`, `dim_student` |
+| Overview | Active students, share graduated and dropped out, average GPA; students active, admitted, graduated and dropped out per academic year; pass rate and GPA per year; outcomes of complete cohorts | `dim_student`, `mart_student_population_by_year`, `mart_course_pass_rates_by_year`, `mart_student_gpa_trend`, `mart_time_to_graduation` |
+| Course pass rates | Filters for faculty, program, academic year and term; the ten hardest and easiest courses; pass rate per professor | `mart_course_pass_rates_by_year`, `mart_course_pass_rates` |
+| Student progress | One student's cumulative GPA against the average of their program and cohort; ECTS per semester; semester table | `mart_student_gpa_trend` |
 | Dropout risk | Risk levels per program; a filterable list of students to follow up | `mart_dropout_risk` |
 | Time to graduation | Median years and on-time share per program and complete cohort; cohort table | `mart_time_to_graduation` |
 
@@ -42,22 +42,27 @@ Uncached, against the default history (15,000 students), the best of three runs:
 
 | Page | Queries | Total |
 |---|---|---|
-| Overview | 3 | 282 ms |
-| Course pass rates | 3 | 23 ms |
-| Student progress | 3 | 160 ms |
-| Dropout risk | 2 | 20 ms |
-| Time to graduation | 1 | 3 ms |
+| Overview | 3 | 96 ms |
+| Course pass rates | 3 | 17 ms |
+| Student progress | 3 | 131 ms |
+| Dropout risk | 2 | 15 ms |
+| Time to graduation | 1 | 2 ms |
 
-## What the marts lacked
+The overview became three times faster when the population mart replaced a count over the GPA trend.
 
-Building the pages showed a few gaps. The dashboard works around them; they are candidates for the marts.
+## Gaps found in the marts, and how they were closed
 
-- **No history of student status.** `student_status` is Type 1, so "active students per academic year" cannot be read from the warehouse. The overview counts students with enrollments in each academic year instead.
-- **No completeness flag on cohorts.** In young cohorts only the fastest students have graduated yet, so their median time to graduate looks short and their on-time share looks high. The page charts only cohorts with at most 5% of students still studying. An `is_complete` column in `mart_time_to_graduation` would make that rule part of the model.
-- **`mart_student_gpa_trend` is not self-contained.** It has no cohort year, index number or program code, so the student selector and the cohort averages join `dim_student`.
-- **Pass rates per offering, not per course.** Comparing courses across years means aggregating again. Average grades must then be weighted by the number of passes, not averaged.
-- **The current semester has no GPA yet.** The trend mart includes the semester in progress, with an empty semester GPA. Students without any graded semester are left out of the selector.
-- **No graduation date** in the source. Time to graduate runs to the last passed exam of the program, as defined in the mart.
+Building the first version of the pages showed gaps in the marts. The dashboard first worked around them; each gap was then closed in the model, and the workarounds were removed.
+
+| Gap | Workaround in the first version | Fix in the model |
+|---|---|---|
+| No history of student status, so no active students per year | Counted students with enrollments in each year | Migration 007 added `graduated_at` and `dropped_out_at`. `mart_student_population_by_year` counts students admitted, active, graduated and dropped out per year. |
+| No completeness flag on cohorts; young cohorts looked fast | The page hid cohorts with more than 5% still studying | `is_complete` in `mart_time_to_graduation`, set by the dbt variable `complete_cohort_share` |
+| No graduation date; time to graduate ran to the last passed exam | — | Time to graduate now runs to `graduated_at` |
+| `mart_student_gpa_trend` lacked cohort, program and index number | Joined `dim_student` | The mart carries them itself |
+| Pass rates only per offering | Re-aggregated per course, weighting average grades by passes | `mart_course_pass_rates_by_year`, computed from the enrollments |
+
+One behaviour stays on purpose. The trend mart includes the semester in progress, with an empty semester GPA, and students without any graded semester are left out of the selector.
 
 ## Tests
 
