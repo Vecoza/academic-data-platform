@@ -36,7 +36,7 @@ def count(value: int | None) -> str:
 
 
 def empty_state(message: str) -> None:
-    st.info(message, icon="ℹ️")
+    st.info(message)
 
 
 def count_column(label: str) -> st.column_config.NumberColumn:

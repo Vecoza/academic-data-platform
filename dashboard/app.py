@@ -6,25 +6,19 @@ import streamlit as st
 
 VIEWS = Path(__file__).resolve().parent / "views"
 
-st.set_page_config(page_title="Academic Data Platform", page_icon="🎓", layout="wide")
+st.set_page_config(page_title="Academic Data Platform", layout="wide")
 
 navigation = st.navigation(
     [
-        st.Page(VIEWS / "overview.py", title="Overview", icon="📊", default=True),
+        st.Page(VIEWS / "overview.py", title="Overview", default=True),
+        st.Page(VIEWS / "pass_rates.py", title="Course pass rates", url_path="pass-rates"),
         st.Page(
-            VIEWS / "pass_rates.py", title="Course pass rates", icon="📚", url_path="pass-rates"
+            VIEWS / "student_progress.py", title="Student progress", url_path="student-progress"
         ),
-        st.Page(
-            VIEWS / "student_progress.py",
-            title="Student progress",
-            icon="📈",
-            url_path="student-progress",
-        ),
-        st.Page(VIEWS / "dropout_risk.py", title="Dropout risk", icon="⚠️", url_path="dropout-risk"),
+        st.Page(VIEWS / "dropout_risk.py", title="Dropout risk", url_path="dropout-risk"),
         st.Page(
             VIEWS / "time_to_graduation.py",
             title="Time to graduation",
-            icon="🎓",
             url_path="time-to-graduation",
         ),
     ]
