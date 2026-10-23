@@ -70,6 +70,26 @@ flowchart LR
 
 Every component runs in Docker Compose on one PostgreSQL server, which holds separate databases for the operational system, the warehouse and Airflow. The whole platform starts with a single Compose command. On an empty database it generates a history, loads it and builds the warehouse before the scheduler and the dashboard start. The full diagram and the list of services are in [docs/architecture.md](docs/architecture.md).
 
+## Getting started
+
+Requirements: Docker with Docker Compose, and `make`.
+
+```bash
+git clone https://github.com/Vecoza/academic-data-platform.git
+cd academic-data-platform
+cp .env.example .env
+make platform-up
+```
+
+The first start generates and loads a history of 15,000 students, which takes about ten minutes. For a quicker first look, start with a smaller history: `PLATFORM_STUDENTS=500 make platform-up`.
+
+| Service | Address |
+|---|---|
+| Dashboard | http://localhost:8501 |
+| Airflow (trigger `academic_daily` to simulate and process a day) | http://localhost:8080 |
+
+`make down` stops every container and keeps the data. `make help` lists all commands, including running the pipeline step by step from a local Python environment (`make install`, `make up`, `make pipeline`) and the tests (`make test`).
+
 ## Results
 
 Measured on a laptop with PostgreSQL in Docker, with the default history of 15,000 students over eight academic years.
