@@ -12,7 +12,6 @@ from ingestion.catalog import SourceTable, column_type
 logger = logging.getLogger(__name__)
 
 RAW_SCHEMA = "raw"
-META_SCHEMA = "meta"
 
 META_DDL = """
     CREATE SCHEMA IF NOT EXISTS raw;

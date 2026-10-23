@@ -7,10 +7,8 @@ import pandas as pd
 import streamlit as st
 
 PRIMARY = "#2F5D8C"
-SECONDARY = "#E08E45"
 MUTED = "#9AA5B1"
 RISK_COLORS = {"low": "#4C9A6A", "medium": "#E0B04A", "high": "#C0504D"}
-TERM_COLORS = {"winter": PRIMARY, "summer": SECONDARY}
 RATE_FORMAT = ".1%"
 GPA_FORMAT = ".2f"
 LABEL_LIMIT = 320
