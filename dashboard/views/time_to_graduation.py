@@ -16,17 +16,14 @@ if results.empty:
 all_programs = sorted(results.program_label.unique())
 programs = st.multiselect("Program", all_programs)
 selected = results[results.program_label.isin(programs or all_programs)]
-complete = selected[
-    (selected.graduated > 0)
-    & (selected.still_studying <= style.COMPLETE_COHORT_SHARE * selected.students)
-]
+complete = selected[selected.is_complete & (selected.graduated > 0)]
 if complete.empty:
     style.empty_state("No cohort of the selected programs is complete yet.")
     st.stop()
 st.caption(
-    f"The charts show cohorts with at most {style.COMPLETE_COHORT_SHARE:.0%} of students still "
-    "studying. In younger cohorts only the fastest students have graduated yet, which would make "
-    "their times look shorter than they will be."
+    "The charts show complete cohorts, where at most 5% of students are still studying. In "
+    "younger cohorts only the fastest students have graduated yet, which would make their times "
+    "look shorter than they will be."
 )
 
 left, right = st.columns(2)
@@ -73,6 +70,7 @@ st.dataframe(
         "graduated": "Graduated",
         "dropped_out": "Dropped out",
         "still_studying": "Still studying",
+        "is_complete": "Complete",
         "graduation_rate": st.column_config.NumberColumn("Graduation rate", format="percent"),
         "average_years_to_graduate": st.column_config.NumberColumn("Average years", format="%.2f"),
         "median_years_to_graduate": st.column_config.NumberColumn("Median years", format="%.2f"),

@@ -103,3 +103,19 @@ def test_time_to_graduation_has_one_row_per_program_and_cohort(reader: Connectio
 def test_the_reader_role_cannot_read_outside_marts(reader: Connection) -> None:
     with pytest.raises(ProgrammingError, match="permission denied"):
         reader.execute(text("SELECT count(*) FROM raw.students"))
+
+
+def test_yearly_population_counts_are_consistent(reader: Connection) -> None:
+    trends = queries.yearly_trends(reader)
+
+    assert (trends.active >= trends.admitted).all()
+    assert (trends.graduated + trends.dropped_out <= trends.active).all()
+
+
+def test_complete_cohorts_have_few_students_still_studying(reader: Connection) -> None:
+    results = queries.time_to_graduation(reader)
+    complete = results[results.is_complete]
+
+    assert not complete.empty
+    assert (complete.still_studying <= 0.05 * complete.students).all()
+    assert not results[~results.is_complete].empty

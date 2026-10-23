@@ -15,7 +15,6 @@ RATE_FORMAT = ".1%"
 GPA_FORMAT = ".2f"
 LABEL_LIMIT = 320
 RISK_ORDER = {"low": 0, "medium": 1, "high": 2}
-COMPLETE_COHORT_SHARE = 0.05
 
 
 def percent(value: float | None) -> str:

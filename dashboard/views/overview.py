@@ -1,6 +1,14 @@
+import altair as alt
 import streamlit as st
 
 from dashboard import data, style
+
+POPULATION_LABELS = {
+    "active": "Active",
+    "admitted": "Admitted",
+    "graduated": "Graduated",
+    "dropped_out": "Dropped out",
+}
 
 st.title("Overview")
 st.caption("Key figures across all students admitted since the start of the history.")
@@ -26,13 +34,36 @@ columns[3].metric(
 trends = data.yearly_trends()
 left, right = st.columns(2)
 with left:
-    st.subheader("Students enrolled per academic year")
+    st.subheader("Students per academic year")
+    population = trends.melt(
+        id_vars="academic_year_label",
+        value_vars=["active", "admitted", "graduated", "dropped_out"],
+        var_name="group",
+        value_name="students",
+    )
+    population["group"] = population["group"].map(POPULATION_LABELS)
     st.altair_chart(
         style.line_chart(
-            trends, "academic_year_label", "students_enrolled", "Academic year", "Students", ",d"
+            population,
+            "academic_year_label",
+            "students",
+            "Academic year",
+            "Students",
+            ",d",
+            color="group",
+            color_scale=alt.Scale(
+                domain=list(POPULATION_LABELS.values()),
+                range=[
+                    style.PRIMARY,
+                    style.MUTED,
+                    style.RISK_COLORS["low"],
+                    style.RISK_COLORS["high"],
+                ],
+            ),
         ),
         width="stretch",
     )
+    st.caption("The current academic year is still in progress.")
 with right:
     st.subheader("Exam pass rate per academic year")
     st.altair_chart(
@@ -62,8 +93,9 @@ with left:
         width="stretch",
     )
 with right:
-    st.subheader("Outcomes per cohort")
-    outcomes = data.cohort_outcomes().melt(
+    st.subheader("Outcomes of complete cohorts")
+    cohorts = data.cohort_outcomes()
+    outcomes = cohorts[cohorts.is_complete].melt(
         id_vars="cohort_year",
         value_vars=["graduation_rate", "dropout_rate"],
         var_name="outcome",
@@ -84,4 +116,4 @@ with right:
         ),
         width="stretch",
     )
-    st.caption("Recent cohorts are still studying, so their graduation rates are not final.")
+    st.caption("A cohort is complete when at most 5% of its students are still studying.")

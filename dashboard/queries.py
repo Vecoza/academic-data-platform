@@ -46,35 +46,42 @@ def overview_kpis(connection: Connection) -> pd.DataFrame:
 
 
 def yearly_trends(connection: Connection) -> pd.DataFrame:
-    """Per academic year: students with enrollments, average semester GPA and pass rate."""
+    """Per academic year: students admitted, active, graduated and dropped out, the exam pass
+    rate and the average semester GPA."""
     return read(
         connection,
         """
-        WITH activity AS (
+        WITH pass_rates AS (
             SELECT
-                academic_year_label,
-                COUNT(DISTINCT student_id) AS students_enrolled,
-                AVG(semester_gpa) AS average_semester_gpa
+                academic_year,
+                SUM(passed)::numeric / NULLIF(SUM(passed + failed), 0) AS pass_rate
+            FROM marts.mart_course_pass_rates_by_year
+            GROUP BY academic_year
+        ),
+        grades AS (
+            SELECT academic_year_label, AVG(semester_gpa) AS average_semester_gpa
             FROM marts.mart_student_gpa_trend
             GROUP BY academic_year_label
-        ),
-        pass_rates AS (
-            SELECT
-                academic_year_label,
-                SUM(passed)::numeric / NULLIF(SUM(passed + failed), 0) AS pass_rate
-            FROM marts.mart_course_pass_rates
-            GROUP BY academic_year_label
         )
-        SELECT activity.*, pass_rates.pass_rate
-        FROM activity
-        LEFT JOIN pass_rates USING (academic_year_label)
-        ORDER BY academic_year_label
+        SELECT
+            population.academic_year_label,
+            population.admitted,
+            population.active,
+            population.graduated,
+            population.dropped_out,
+            pass_rates.pass_rate,
+            grades.average_semester_gpa
+        FROM marts.mart_student_population_by_year AS population
+        LEFT JOIN pass_rates USING (academic_year)
+        LEFT JOIN grades USING (academic_year_label)
+        ORDER BY population.academic_year
         """,
     )
 
 
 def cohort_outcomes(connection: Connection) -> pd.DataFrame:
-    """Per cohort (academic year of program start): graduation and dropout rate."""
+    """Per cohort (academic year of program start): graduation and dropout rate, and whether
+    every program of the cohort is complete."""
     return read(
         connection,
         """
@@ -83,7 +90,8 @@ def cohort_outcomes(connection: Connection) -> pd.DataFrame:
             SUM(students) AS students,
             SUM(graduated)::numeric / SUM(students) AS graduation_rate,
             SUM(dropped_out)::numeric / SUM(students) AS dropout_rate,
-            SUM(still_studying)::numeric / SUM(students) AS still_studying_share
+            SUM(still_studying)::numeric / SUM(students) AS still_studying_share,
+            BOOL_AND(is_complete) AS is_complete
         FROM marts.mart_time_to_graduation
         GROUP BY cohort_year
         ORDER BY cohort_year
@@ -96,7 +104,7 @@ def pass_rate_filter_options(connection: Connection) -> pd.DataFrame:
         connection,
         """
         SELECT DISTINCT faculty_name, program_label, academic_year_label, term
-        FROM marts.mart_course_pass_rates
+        FROM marts.mart_course_pass_rates_by_year
         ORDER BY faculty_name, program_label, academic_year_label, term
         """,
     )
@@ -117,7 +125,7 @@ def course_pass_rates(
     academic_years: Sequence[str],
     terms: Sequence[str],
 ) -> pd.DataFrame:
-    """Per course over the selected offerings, with enough decided enrollments to compare."""
+    """Per course over the selected years, with enough decided enrollments to compare."""
     return read(
         connection,
         f"""
@@ -130,7 +138,7 @@ def course_pass_rates(
             SUM(failed) AS failed,
             SUM(passed)::numeric / NULLIF(SUM(passed + failed), 0) AS pass_rate,
             SUM(average_grade * passed) / NULLIF(SUM(passed), 0) AS average_grade
-        FROM marts.mart_course_pass_rates
+        FROM marts.mart_course_pass_rates_by_year
         {PASS_RATE_FILTER}
         GROUP BY course_code, course_name, program_label
         HAVING SUM(passed + failed) >= :min_decided
@@ -179,20 +187,15 @@ def student_choices(connection: Connection) -> pd.DataFrame:
     return read(
         connection,
         """
-        SELECT
-            student.student_id,
-            student.index_number,
-            student.full_name,
-            student.program_label,
-            student.cohort_year
-        FROM marts.dim_student AS student
-        WHERE student.is_current
-          AND EXISTS (
-              SELECT 1 FROM marts.mart_student_gpa_trend AS trend
-              WHERE trend.student_id = student.student_id
-                AND trend.semester_gpa IS NOT NULL
-          )
-        ORDER BY student.program_label, student.cohort_year, student.index_number
+        SELECT DISTINCT
+            student_id,
+            index_number,
+            full_name,
+            current_program AS program_label,
+            cohort_year
+        FROM marts.mart_student_gpa_trend
+        WHERE semester_gpa IS NOT NULL
+        ORDER BY program_label, cohort_year, index_number
         """,
     )
 
@@ -227,19 +230,16 @@ def cohort_gpa_averages(
         connection,
         """
         SELECT
-            trend.semester_sequence,
-            AVG(trend.semester_gpa) AS semester_gpa,
-            AVG(trend.cumulative_gpa) AS cumulative_gpa,
-            AVG(trend.cumulative_ects) AS cumulative_ects,
+            semester_sequence,
+            AVG(semester_gpa) AS semester_gpa,
+            AVG(cumulative_gpa) AS cumulative_gpa,
+            AVG(cumulative_ects) AS cumulative_ects,
             COUNT(*) AS students
-        FROM marts.mart_student_gpa_trend AS trend
-        JOIN marts.dim_student AS student
-            ON student.student_id = trend.student_id
-            AND student.is_current
-        WHERE student.program_label = :program_label
-          AND student.cohort_year = :cohort_year
-        GROUP BY trend.semester_sequence
-        ORDER BY trend.semester_sequence
+        FROM marts.mart_student_gpa_trend
+        WHERE current_program = :program_label
+          AND cohort_year = :cohort_year
+        GROUP BY semester_sequence
+        ORDER BY semester_sequence
         """,
         program_label=program_label,
         cohort_year=cohort_year,
@@ -301,6 +301,7 @@ def time_to_graduation(connection: Connection) -> pd.DataFrame:
             graduated,
             dropped_out,
             still_studying,
+            is_complete,
             graduation_rate,
             average_years_to_graduate,
             median_years_to_graduate,
