@@ -1,4 +1,3 @@
-import altair as alt
 import streamlit as st
 
 from dashboard import data, style
@@ -42,6 +41,9 @@ with left:
         value_name="students",
     )
     population["group"] = population["group"].map(POPULATION_LABELS)
+    current_year = trends.academic_year_label.iloc[-1]
+    leaving = population.group.isin(["Graduated", "Dropped out"])
+    population = population[~(leaving & (population.academic_year_label == current_year))]
     st.altair_chart(
         style.line_chart(
             population,
@@ -49,23 +51,19 @@ with left:
             "students",
             "Academic year",
             "Students",
-            ",d",
+            style.COUNT_FORMAT,
             color="group",
-            color_scale=alt.Scale(
-                domain=list(POPULATION_LABELS.values()),
-                range=[
-                    style.PRIMARY,
-                    style.MUTED,
-                    style.RISK_COLORS["low"],
-                    style.RISK_COLORS["high"],
-                ],
-            ),
+            color_scale=style.group_scale(list(POPULATION_LABELS.values())),
         ),
         width="stretch",
     )
-    st.caption("The current academic year is still in progress.")
+    st.caption(
+        f"The history starts with its first cohort in {trends.academic_year_label.iloc[0]}, so "
+        f"the early years show the student body growing to full size. {current_year} is still "
+        "in progress, so its graduates and dropouts are not shown yet."
+    )
 with right:
-    st.subheader("Exam pass rate per academic year")
+    st.subheader("Course pass rate per academic year")
     st.altair_chart(
         style.line_chart(
             trends,
@@ -89,6 +87,7 @@ with left:
             "Academic year",
             "GPA",
             style.GPA_FORMAT,
+            y_range=style.GPA_RANGE,
         ),
         width="stretch",
     )
@@ -113,6 +112,7 @@ with right:
             "Share of cohort",
             style.RATE_FORMAT,
             color="outcome",
+            color_scale=style.group_scale(["Graduated", "Dropped out"]),
         ),
         width="stretch",
     )

@@ -30,35 +30,28 @@ left, right = st.columns(2)
 with left:
     st.subheader("Median years to graduate")
     st.altair_chart(
-        style.line_chart(
-            complete,
-            "cohort_year:O",
-            "median_years_to_graduate",
-            "Cohort",
-            "Years",
-            ".1f",
-            color="program_label",
+        style.grouped_bar_chart(
+            complete, "program_label", "cohort_year", "median_years_to_graduate", "Years", ".1f"
         ),
         width="stretch",
     )
 with right:
     st.subheader("Share graduating on time")
     st.altair_chart(
-        style.line_chart(
+        style.grouped_bar_chart(
             complete,
-            "cohort_year:O",
+            "program_label",
+            "cohort_year",
             "on_time_share",
-            "Cohort",
             "Share of graduates",
             style.RATE_FORMAT,
-            color="program_label",
         ),
         width="stretch",
     )
 
 st.subheader("Cohorts")
 st.dataframe(
-    selected,
+    style.as_percentages(selected, ["graduation_rate", "on_time_share"]),
     hide_index=True,
     width="stretch",
     column_config={
@@ -66,15 +59,15 @@ st.dataframe(
         "degree_level": "Degree",
         "nominal_years": "Nominal years",
         "cohort_year": st.column_config.NumberColumn("Cohort", format="%d"),
-        "students": "Students",
-        "graduated": "Graduated",
-        "dropped_out": "Dropped out",
-        "still_studying": "Still studying",
+        "students": style.count_column("Students"),
+        "graduated": style.count_column("Graduated"),
+        "dropped_out": style.count_column("Dropped out"),
+        "still_studying": style.count_column("Still studying"),
         "is_complete": "Complete",
-        "graduation_rate": st.column_config.NumberColumn("Graduation rate", format="percent"),
+        "graduation_rate": style.percent_column("Graduation rate"),
         "average_years_to_graduate": st.column_config.NumberColumn("Average years", format="%.2f"),
         "median_years_to_graduate": st.column_config.NumberColumn("Median years", format="%.2f"),
-        "on_time_share": st.column_config.NumberColumn("On time", format="percent"),
+        "on_time_share": style.percent_column("On time"),
     },
 )
 st.caption("Cohorts with students still studying are not final.")

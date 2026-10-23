@@ -25,13 +25,18 @@ st.altair_chart(
     alt.Chart(counts)
     .mark_bar()
     .encode(
-        x=alt.X("students", title="Active students", stack="normalize", axis=alt.Axis(format="%")),
+        x=alt.X(
+            "students",
+            title="Active students",
+            stack="normalize",
+            axis=alt.Axis(format=style.RATE_FORMAT),
+        ),
         y=alt.Y("program_label", title=None, axis=alt.Axis(labelLimit=style.LABEL_LIMIT)),
         color=alt.Color(
             "risk_level", title="Risk", scale=style.risk_scale(), sort=list(style.RISK_COLORS)
         ),
         order=alt.Order("risk_order", sort="ascending"),
-        tooltip=["program_label", "risk_level", alt.Tooltip("students", format=",d")],
+        tooltip=["program_label", "risk_level", alt.Tooltip("students", format=style.COUNT_FORMAT)],
     )
     .properties(height=alt.Step(28)),
     width="stretch",
@@ -56,10 +61,10 @@ else:
             "full_name": "Name",
             "program_label": "Program",
             "cohort_year": st.column_config.NumberColumn("Cohort", format="%d"),
-            "completed_semesters": "Completed semesters",
-            "ects_earned": "ECTS",
-            "expected_ects": "Expected ECTS",
-            "recent_failures": "Recent failures",
+            "completed_semesters": style.count_column("Completed semesters"),
+            "ects_earned": style.count_column("ECTS"),
+            "expected_ects": style.count_column("Expected ECTS"),
+            "recent_failures": style.count_column("Recent failures"),
             "gpa": st.column_config.NumberColumn("GPA", format="%.2f"),
             "low_ects": "Low ECTS",
             "repeated_failures": "Repeated failures",

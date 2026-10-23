@@ -7,3 +7,6 @@ gatherUsageStats = false
 [theme]
 base = "light"
 primaryColor = "#2F5D8C"
+
+[client]
+toolbarMode = "minimal"

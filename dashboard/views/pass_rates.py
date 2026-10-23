@@ -75,16 +75,16 @@ if professors.empty:
     style.empty_state("No professor has enough decided enrollments for this selection.")
 else:
     st.dataframe(
-        professors,
+        style.as_percentages(professors, ["pass_rate"]),
         hide_index=True,
         width="stretch",
         column_config={
             "professor_name": "Professor",
             "faculty_name": "Faculty",
-            "offerings": st.column_config.NumberColumn("Offerings", format="%d"),
-            "decided": st.column_config.NumberColumn("Decided enrollments", format="%d"),
+            "offerings": style.count_column("Offerings"),
+            "decided": style.count_column("Decided enrollments"),
             "pass_rate": st.column_config.ProgressColumn(
-                "Pass rate", format="percent", min_value=0, max_value=1
+                "Pass rate", format="%.1f%%", min_value=0, max_value=100
             ),
         },
     )
