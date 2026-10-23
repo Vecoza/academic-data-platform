@@ -130,7 +130,7 @@ Locally, on the default history (15,000 students), starting at the beginning of 
 | manual 3 | 4 Oct | 169 s | 8 s | 8 s | 126 s | 23 s |
 | backfill to 4 Oct | none, already simulated | 131 s | | | | |
 
-`dbt_build` dominates every run. The spread between runs comes from the machine, not the data. The backfill run confirmed that a repeated target date is skipped by the generator and leaves the clock where it was.
+`dbt_build` dominates every run, and its spread (58 s to 126 s here, 278 s in a later run) was not noise: these runs predate the fix to the staging query plans described below. After that fix, `dbt_build` takes about 22 s. The backfill run confirmed that a repeated target date is skipped by the generator and leaves the clock where it was.
 
 **Log masking.** Airflow masks connection passwords wherever they appear in task logs. The first local password was the word "academic", so DAG names appeared as `***_daily`. The default password is now `adp_local_pw_2026`, a value that cannot occur inside a name, and task logs show `academic_daily` in full.
 

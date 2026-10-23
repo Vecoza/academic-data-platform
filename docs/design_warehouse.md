@@ -18,7 +18,7 @@ The warehouse turns the raw copy of the operational database into a dimensional 
 
 **Statistics after every build.** Each table model runs `ANALYZE` in a post-hook. PostgreSQL does not collect statistics for a table created with `CREATE TABLE AS` until autovacuum gets to it. Without them, the planner chose a nested-loop plan for a mart join that ran for more than ten minutes; with them, it takes seconds.
 
-**Sources and freshness.** The `raw` source declares `_loaded_at` as its load timestamp. `dbt source freshness` warns when a table has not received data for 2 days and fails after 7.
+**Sources and freshness.** The `raw` source declares `_loaded_at` as its load timestamp. `dbt source freshness` uses thresholds that follow how often each table changes: `students` warns after 2 days and fails after 7; `enrollments`, `exam_attempts` and `student_programs` warn after 14 and fail after 30; reference tables are not checked. The reasoning is in [design_quality.md](design_quality.md).
 
 ## Business dates and technical timestamps
 
@@ -43,7 +43,7 @@ The Type 1 dimensions use the source identifiers as their keys. They are stable,
 
 ### `dim_student`: Type 2 from business dates
 
-**Design change from the original plan.** The plan was to build `dim_student` with a dbt snapshot. A snapshot compares each run with the previous one and records changes from that moment on. Its history would therefore start on the day of the first dbt run, although the operational database already holds the complete program history of every student in `student_programs`, with real business dates. Building the dimension directly from those periods gives correct history back to 2018, rebuilds identically on every run, and does not depend on how often dbt happens to run.
+**Why not a dbt snapshot.** An earlier design built `dim_student` with a dbt snapshot. A snapshot compares each run with the previous one and records changes from that moment on. Its history would therefore start on the day of the first dbt run, although the operational database already holds the complete program history of every student in `student_programs`, with real business dates. Building the dimension directly from those periods gives correct history back to 2018, rebuilds identically on every run, and does not depend on how often dbt happens to run.
 
 | Attribute | Type | Meaning |
 |---|---|---|
@@ -126,4 +126,4 @@ Tests run as part of `dbt build`, so a model whose tests fail stops its dependan
 | `assert_dim_student_has_valid_periods` (singular) | Exactly one current version per student and no overlapping periods |
 | `assert_student_population_balances` (singular) | Each year's students at year end equal the previous year's, plus admissions, minus graduations and dropouts |
 
-More data quality checks are added in the next phase.
+Cross-layer checks, freshness and the plausibility warnings are described in [design_quality.md](design_quality.md).

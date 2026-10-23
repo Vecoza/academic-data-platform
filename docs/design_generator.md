@@ -57,7 +57,7 @@ The simulation groups its output into three periods per academic year: winter, s
 The simulation walks through the academic years in order. Every decision uses only results known at that moment: a student enrolling in March sees the January and February results, but not the September ones.
 
 **Cohorts.**
-- Each academic year admits a new cohort. The requested number of students is split over the years, with sizes varying by up to ±10%.
+- Each academic year admits a new cohort. The chosen number of students is split over the years, with sizes varying by up to ±10%.
 - Bachelor programs are twice as likely to be chosen as master programs.
 - Each student has a hidden ability, and each course a hidden difficulty, both drawn from a standard normal distribution.
 
@@ -124,17 +124,17 @@ Default run (15,000 students, 8 years) on a laptop with PostgreSQL in Docker:
 
 | Step | Rows | Time |
 |---|---|---|
-| Simulation in memory | — | 7.5 s |
-| Reference tables, students, program periods, offerings, exam terms | 42,000 | 1.9 s |
-| Enrollments | 406,000 | 78 s |
-| Exam attempts | 570,000 | 88 s |
-| **Total load** | 1,019,000 | 168 s |
+| Simulation in memory | — | 8 s |
+| Reference tables, students, program periods, offerings, exam terms | 42,951 | 2 s |
+| Enrollments | 418,730 | 182 s |
+| Exam attempts | 539,509 | 100 s |
+| **Total load** | 1,001,190 | 284 s |
 
 Almost all of the time goes to the two trigger-checked tables. Each enrollment runs the prerequisite query, and each attempt locks its enrollment row and checks for an earlier pass. Both queries are served by existing indexes: the unique keys on `enrollments (student_id, offering_id)` and `exam_attempts (enrollment_id, exam_term_id)`.
 
 ### Load time investigation
 
-The same full load took 168 s in one run and 321–324 s in later runs on the same laptop, which is over the five-minute budget. The investigation below found where the time goes and showed that none of the obvious tunings help. None of them was kept.
+Identical full loads have taken between 168 s and 324 s on the same laptop. The investigation below found where the time goes and showed that none of the obvious tunings help, so none of them was kept.
 
 **Where the time goes.** These measurements used 5,000 students (347,000 rows), each load inside a transaction that was rolled back:
 
