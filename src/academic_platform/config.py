@@ -47,8 +47,7 @@ class DatabaseSettings:
     def url(self) -> str:
         """SQLAlchemy connection URL using the psycopg 3 driver."""
         return (
-            f"postgresql+psycopg://{self.user}:{self.password}"
-            f"@{self.host}:{self.port}/{self.name}"
+            f"postgresql+psycopg://{self.user}:{self.password}@{self.host}:{self.port}/{self.name}"
         )
 
     @property
