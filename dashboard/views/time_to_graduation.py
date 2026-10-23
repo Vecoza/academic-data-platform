@@ -5,7 +5,7 @@ from dashboard import data, style
 st.title("Time to graduation")
 st.caption(
     "Cohorts are the academic year a student started their current program. Time to graduate "
-    "runs from that start to the last passed exam in the program."
+    "runs from that start to the graduation date."
 )
 
 results = data.time_to_graduation()
