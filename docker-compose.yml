@@ -1,6 +1,5 @@
 x-airflow-common: &airflow-common
   image: academic-data-platform-airflow:3.3.2
-  profiles: ["airflow"]
   environment: &airflow-environment
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
     AIRFLOW__CORE__LOAD_EXAMPLES: "false"
@@ -37,9 +36,25 @@ services:
       timeout: 5s
       retries: 10
 
+  platform-init:
+    image: academic-data-platform-airflow:3.3.2
+    entrypoint: ["bash", "/opt/academic/project/orchestration/bootstrap.sh"]
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      WAREHOUSE_DB: ${WAREHOUSE_DB:-warehouse}
+      PLATFORM_STUDENTS: ${PLATFORM_STUDENTS:-15000}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+
   airflow-database:
     image: postgres:16-alpine
-    profiles: ["airflow"]
     environment:
       PGHOST: postgres
       PGUSER: ${POSTGRES_USER}
@@ -81,7 +96,7 @@ services:
       interval: 10s
       timeout: 10s
       retries: 10
-      start_period: 30s
+      start_period: 120s
     depends_on:
       airflow-init:
         condition: service_completed_successfully
@@ -91,23 +106,25 @@ services:
     command: scheduler
     healthcheck:
       test: ["CMD-SHELL", "airflow jobs check --job-type SchedulerJob --hostname \"$${HOSTNAME}\""]
-      interval: 30s
-      timeout: 10s
+      interval: 60s
+      timeout: 30s
       retries: 5
-      start_period: 30s
+      start_period: 120s
     depends_on:
       airflow-apiserver:
         condition: service_healthy
+      platform-init:
+        condition: service_completed_successfully
 
   airflow-dag-processor:
     <<: *airflow-common
     command: dag-processor
     healthcheck:
       test: ["CMD-SHELL", "airflow jobs check --job-type DagProcessorJob --hostname \"$${HOSTNAME}\""]
-      interval: 30s
-      timeout: 10s
+      interval: 60s
+      timeout: 30s
       retries: 5
-      start_period: 30s
+      start_period: 120s
     depends_on:
       airflow-init:
         condition: service_completed_successfully
@@ -117,7 +134,6 @@ services:
       context: .
       dockerfile: dashboard/Dockerfile
     image: academic-data-platform-dashboard:1.0
-    profiles: ["dashboard"]
     environment:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: "5432"
@@ -128,12 +144,11 @@ services:
       DASHBOARD_PASSWORD: ${DASHBOARD_PASSWORD}
     command: ["python", "-m", "dashboard.access"]
     depends_on:
-      postgres:
-        condition: service_healthy
+      platform-init:
+        condition: service_completed_successfully
 
   dashboard:
     image: academic-data-platform-dashboard:1.0
-    profiles: ["dashboard"]
     environment:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: "5432"

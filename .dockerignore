@@ -9,6 +9,9 @@
 !dashboard/
 !.streamlit/config.toml
 !dbt/
+!alembic.ini
+!db/
+!orchestration/bootstrap.sh
 dbt/target/
 dbt/logs/
 dbt/.user.yml

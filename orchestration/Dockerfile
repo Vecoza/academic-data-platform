@@ -20,6 +20,9 @@ COPY --chown=airflow:0 src /opt/academic/project/src
 COPY --chown=airflow:0 generator /opt/academic/project/generator
 COPY --chown=airflow:0 ingestion /opt/academic/project/ingestion
 COPY --chown=airflow:0 quality /opt/academic/project/quality
+COPY --chown=airflow:0 alembic.ini /opt/academic/project/
+COPY --chown=airflow:0 db /opt/academic/project/db
+COPY --chown=airflow:0 orchestration/bootstrap.sh /opt/academic/project/orchestration/
 COPY --chown=airflow:0 dbt /opt/academic/dbt
 
 RUN python -m venv "${PROJECT_VENV}" \
