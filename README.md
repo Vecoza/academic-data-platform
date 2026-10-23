@@ -84,7 +84,7 @@ Measured on a laptop with PostgreSQL in Docker, with the default history of 15,0
 | Daily Airflow run (simulate, ingest, build, check) | 38 s on an ordinary day, 132 s on the first day of the academic year |
 | Dashboard queries | under 0.15 s per page, uncached |
 | Tests | 190 Python tests, 170 dbt tests, 10 DAG tests; every push runs the whole chain on a fresh database in CI |
-| Simulated outcomes | 77% of complete cohorts graduate, 12% of all students drop out, 4% transfer |
+| Simulated outcomes | Of all 16,997 students admitted, 44.5% have graduated and 10.9% dropped out; in complete cohorts, 78.3% graduated and 21.7% dropped out; 3.8% changed program. These are the figures the dashboard shows. |
 
 ![Dashboard overview](docs/images/dashboard_overview.png)
 
@@ -103,9 +103,9 @@ Screenshots of all five pages are in [docs/images](docs/images).
 
 ## Lessons learned
 
-**Load order matters when triggers check other rows.** The prerequisite trigger checks, at insert time, that a student has already passed the prerequisites. Loading all enrollments before all exam attempts therefore rejected every course with prerequisites. The history is now loaded period by period, in the order it happened. Measuring the load also showed that 96% of its time goes to per-row checks: 3 s with all triggers off against 79 s with them on. They stay on deliberately; the trade-off is documented.
+**Load order matters when triggers check other rows.** The prerequisite trigger checks, at insert time, that a student has already passed the prerequisites. Loading all enrollments before all exam attempts therefore rejected every course with prerequisites. The history is now loaded period by period, in the order it happened. Measuring the load on a 5,000-student history also showed that 96% of its time goes to per-row checks: 3 s with all triggers off against 79 s with them on. They stay on deliberately; the trade-off is documented.
 
-**The query planner needs to be able to estimate.** The staging views first selected the latest version of each row with `ROW_NUMBER() = 1`. PostgreSQL estimates such a filter at 0.5% of the rows, so it planned a nested-loop join for what were really 450,000 rows. One relationships test took 132 s. Rewriting the views with `DISTINCT ON`, which returns the same rows but is estimated from column statistics, brought that test under a second and a full daily run from 364 s down to 38 s.
+**The query planner needs to be able to estimate.** The staging views first selected the latest version of each row with `ROW_NUMBER() = 1`. PostgreSQL estimates such a filter at 0.5% of the rows, so it planned a nested-loop join for what were really 450,000 rows. One relationships test took 132 s. Rewriting the views with `DISTINCT ON`, which returns the same rows but is estimated from column statistics, brought that test under a second and the daily `dbt_build` task from 278 s down to 22 s.
 
 **Quality checks test the data, including data you generated yourself.** A plausibility warning flagged 234 course offerings with a pass rate above 99%. The pipeline was correct; the generator was too generous, letting almost everyone pass an easy course over three exam terms. Adding students who never sit the exam and students who give up after two failures brought the count down to 18, the occasional genuinely easy course.
 
