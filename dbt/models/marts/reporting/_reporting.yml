@@ -34,6 +34,10 @@ models:
     columns:
       - name: student_id
         data_tests: [not_null]
+      - name: index_number
+        data_tests: [not_null]
+      - name: cohort_year
+        data_tests: [not_null]
       - name: semester_key
         data_tests: [not_null]
       - name: semester_gpa
@@ -53,7 +57,9 @@ models:
   - name: mart_time_to_graduation
     description: >
       Grain one row per program and cohort (academic year the student started the program).
-      Graduation rate, average and median years to graduate, and the share graduating on time.
+      Graduation rate, average and median years to graduate from graduated_at, the share
+      graduating on time, and is_complete: at most complete_cohort_share of the cohort is still
+      studying, so the times are no longer biased towards the fastest graduates.
     data_tests:
       - unique_combination:
           arguments:
@@ -63,6 +69,42 @@ models:
         data_tests: [not_null]
       - name: cohort_year
         data_tests: [not_null]
+      - name: is_complete
+        data_tests: [not_null]
+
+  - name: mart_course_pass_rates_by_year
+    description: >
+      Grain one row per course and academic year, computed from enrollments: offerings,
+      enrollments, passes, failures, pass rate over decided enrollments, first-attempt pass rate
+      and average passing grade.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [course_key, academic_year]
+    columns:
+      - name: course_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_course')
+                field: course_key
+      - name: academic_year
+        data_tests: [not_null]
+      - name: pass_rate
+        data_tests:
+          - value_between:
+              arguments:
+                min_value: 0
+                max_value: 1
+
+  - name: mart_student_population_by_year
+    description: >
+      Grain one row per academic year: students admitted, active during the year, graduated,
+      dropped out, and active at the end of the year, from first program start and exit dates.
+    columns:
+      - name: academic_year
+        data_tests: [unique, not_null]
 
   - name: mart_dropout_risk
     description: >

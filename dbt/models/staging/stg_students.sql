@@ -13,5 +13,7 @@ SELECT
     city,
     CAST(enrollment_year AS integer) AS enrollment_year,
     status AS student_status,
+    graduated_at,
+    dropped_out_at,
     updated_at AS source_updated_at
 FROM source

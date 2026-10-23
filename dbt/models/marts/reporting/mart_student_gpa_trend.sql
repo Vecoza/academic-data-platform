@@ -9,7 +9,10 @@ WITH semester_results AS (
 
 SELECT
     results.student_id,
+    student.index_number,
     student.full_name,
+    student.cohort_year,
+    student.program_key AS current_program_key,
     student.program_label AS current_program,
     results.semester_id AS semester_key,
     semester.academic_year_label,

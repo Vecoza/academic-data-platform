@@ -1,5 +1,6 @@
 {#- Type 2 on program membership, built from the business dates of student_programs.
-    Personal and contact attributes are Type 1: every version shows the latest value. -#}
+    Personal and contact attributes, status and exit dates are Type 1: every version shows the
+    latest value. -#}
 SELECT
     {{ surrogate_key(['period.student_id', 'period.valid_from']) }} AS student_sk,
     student.student_id,
@@ -13,6 +14,9 @@ SELECT
     student.email,
     student.city,
     student.student_status,
+    student.graduated_at,
+    student.dropped_out_at,
+    MIN(period.valid_from) OVER (PARTITION BY period.student_id) AS first_enrolled_on,
     program.program_key,
     program.program_label,
     program.degree_level,
